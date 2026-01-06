@@ -1,0 +1,33 @@
+<?php
+$html = '<body>
+<head>
+<style>
+table {
+	font-family: calibri;
+	border: 0.5px solid #333;
+	border-collapse: collapse;
+	font-size:8px;
+}
+ 
+.pdf_class td {
+ 	border: 0.5px solid #333;
+	padding: 2px; 
+}
+.pdf_class th {
+ 	border: 0.5px solid #333;
+	padding:2px; 
+}
+ 
+</style>
+'.$_SESSION['customer_content'].'
+</head>
+	 
+		</body>';
+ // echo $html;exit;
+ error_reporting(0);
+$this->view('mpdf/mpdf.php');
+$mpdf=new mPDF('utf-8','A4','7','calibri',5,5,5,5,0,0); 
+$mpdf->WriteHTML($html);
+$mpdf->SetTitle('Customer Invoice - '.$_SESSION['customer_invoice_no']);
+$mpdf->Output('Customer Invoice - '.$_SESSION['customer_invoice_no'].".pdf","I");
+ 

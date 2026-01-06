@@ -1,0 +1,1 @@
+mPDF('mode:utf-8','format:A4','default_font_size:14','default_font:calibri',margin_left,margin_right,margin_top,margin_bottom,margin_header,margin_footer); 

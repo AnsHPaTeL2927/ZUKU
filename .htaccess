@@ -1,0 +1,20 @@
+<IfModule mod_rewrite.c>
+RewriteEngine on
+RewriteCond $1 !^(index\.php|resources|robots\.txt)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php/$1 [L,QSA]
+
+RewriteCond %{HTTP_REFERER} !^http://(www\.)?localhost [NC] 
+RewriteCond %{HTTP_REFERER} !^http://(www\.)?localhost.*$ [NC] 
+RewriteRule ^upload/?$ - [F,L]
+RewriteRule ^upload/design/?$ - [F,L]
+RewriteRule ^upload/company_doc/?$ - [F,L]
+RewriteRule ^upload/user/?$ - [F,L]
+RewriteRule ^upload/quotation/?$ - [F,L]
+RewriteRule ^upload/database/?$ - [F,L]
+RewriteRule ^upload/csv/?$ - [F,L]
+
+ErrorDocument 403 {HTTP_REFERER}
+</IfModule>
+ 
