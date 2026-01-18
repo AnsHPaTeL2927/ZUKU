@@ -8,7 +8,7 @@
 				<span class="go-top"><i class="clip-chevron-up"></i></span>
 			</div>
 		</div>
-		<script src="<?=base_url()?>adminast/assets/plugins/jQuery-lib/2.0.3/jquery.min.js"></script>
+		<script src="<?=base_url('adminast/assets/plugins/jQuery-lib/2.0.3/jquery.min.js')?>"></script>
 		<script type="text/javascript" src="<?=base_url()?>adminast/assets/js/jquery.dataTables.min.js"></script>
 		<script src="<?=base_url()?>adminast/assets/js/buttons.html5.min.js"></script> 
 		<script src="<?=base_url()?>adminast/assets/js/buttons.print.min.js"></script>
