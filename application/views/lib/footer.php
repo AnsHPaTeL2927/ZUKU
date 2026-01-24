@@ -136,7 +136,7 @@ function closeNav()
   $(".main-navigation-menu li .title").hide();
   $(".navigation-toggler").attr("onclick","openNav()")
 }
-</script>
+</scrip>
   <script type="text/javascript">
 	$(".tooltips").tooltip();       
 function check_pallet(val,status)
