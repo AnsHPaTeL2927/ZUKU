@@ -32,7 +32,6 @@ class Purchaseorder_listing extends CI_controller
 	{
 		$id = $this->input->post('purchase_order_id');
 
-
 		$updateperformainvoice = $this->po->update_performa($this->input->post('production_mst_id'));
 		$deleterecord = $this->po->delete_purchase($id);
 		$deleterecord = $this->po->delete_purchasetrn($id);
@@ -115,11 +114,11 @@ class Purchaseorder_listing extends CI_controller
 			$row_data[] = date('d/m/Y', strtotime($row->purchase_order_date));
 			$row_data[] = $row->company_name . ' - ' . $row->supplier_name;
 
-			$row_data[] =  "&#x20b9; " . indian_number($row->grand_total);
+			$row_data[] =  "$ " . number_format($row->grand_total, 2);
 
 			$edit = '
 			<li>
-				<a class="tooltips" data-toggle="tooltip" data-title="Edit" href="' . base_url() . 'createpo/edit/' . $row->purchase_order_id . '"><i class="fa fa-pencil"></i>Edit</a>
+				<a class="tooltips" data-toggle="tooltip" data-title="Edit" href="' . base_url() . 'purchaseorder_listing/edit_purchase_order/' . $row->purchase_order_id . '"><i class="fa fa-pencil"></i>Edit</a>
 				
 			</li>';
 			$delete = ' <li><a class="tooltips" data-toggle="tooltip" data-title="Detele"  onclick="delete_record(' . $row->purchase_order_id . ',&quot;' . $row->production_mst_id . '&quot;)" href="javascript:;" ><i class="fa fa-trash"></i> Detele</a>
@@ -167,11 +166,73 @@ class Purchaseorder_listing extends CI_controller
 				'pallet_type' => $pallet_type,
 				'box_design' => $box_design,
 				'allsizeproduct' => $allsizeproduct,
+				'edit_mode' => false,
+				'po_data' => null,
+				'po_products' => array(),
 			);
 			$this->load->view('admin/add_purchaseorder_listing', $data);
 		} else {
 			redirect(base_url() . '');
 		}
+	}
+
+	/**
+	 * Edit purchase order - loads form with existing data.
+	 */
+	public function edit_purchase_order($id)
+	{
+		if (empty($this->session->id) || $this->session->title != TITLE) {
+			redirect(base_url() . '');
+			return;
+		}
+		$id = (int) $id;
+		if (!$id) {
+			redirect(base_url() . 'purchaseorder_listing');
+			return;
+		}
+		$po_data = $this->po->get_po_view_data($id);
+		if (!$po_data) {
+			redirect(base_url() . 'purchaseorder_listing');
+			return;
+		}
+		$this->load->model('admin_company_detail');
+		$this->load->model('admin_po', 'po_master');
+		$this->load->model('Admin_purchaseorderpdf', 'po_pdf');
+		$suppliers = $this->po_master->select_supplier();
+		$pallet_type = $this->pinv->get_pallet_type();
+		$box_design = $this->pinv->get_box_design();
+		$allsizeproduct = $this->pinv->allsizeproduct();
+		$trns = $this->po->get_standalone_po_trns($id);
+		$po_products = array();
+		$designs_data = array();
+		$finishes_data = array();
+		foreach ($trns as $t) {
+			$t->packing = $this->po_pdf->getpurchaseproductrate($t->purchaseordertrn_id);
+			if (!isset($designs_data[$t->product_id])) {
+				$designs_data[$t->product_id] = $this->pinv->fetchdesign_detail($t->product_id);
+			}
+			foreach ($t->packing as $pack) {
+				if (!empty($pack->design_id) && !isset($finishes_data[$pack->design_id])) {
+					$finishes_data[$pack->design_id] = $this->pinv->fetchfinish_detail($pack->design_id);
+				}
+			}
+			$po_products[] = $t;
+		}
+		$menu_data = $this->menu->usermain_menu($this->session->usertype_id);
+		$data = array(
+			'menu_data' => $menu_data,
+			'company_detail' => $this->admin_company_detail->s_select(),
+			'suppliers' => $suppliers,
+			'pallet_type' => $pallet_type,
+			'box_design' => $box_design,
+			'allsizeproduct' => $allsizeproduct,
+			'edit_mode' => true,
+			'po_data' => $po_data,
+			'po_products' => $po_products,
+			'designs_data' => $designs_data,
+			'finishes_data' => $finishes_data,
+		);
+		$this->load->view('admin/add_purchaseorder_listing', $data);
 	}
 
 	/**
@@ -328,17 +389,43 @@ class Purchaseorder_listing extends CI_controller
 			return;
 		}
 		
-		// Check for duplicate PO number
+		// Check for duplicate PO number (only for new POs)
+		$purchase_order_id = (int) $this->input->post('purchase_order_id');
+		$is_edit = $purchase_order_id > 0;
+		
 		$this->load->model('admin_po', 'po_master');
-		$existing = $this->db->select('purchase_order_id')
-			->from('tbl_purchase_order')
-			->where('purchase_order_no', $po_number)
-			->where('status', 0)
-			->get()
-			->row();
-		if ($existing) {
-			echo json_encode(array('res' => '0', 'msg' => 'PO Number already exists. Please use a different PO number.'));
-			return;
+		if (!$is_edit) {
+			$existing = $this->db->select('purchase_order_id')
+				->from('tbl_purchase_order')
+				->where('purchase_order_no', $po_number)
+				->where('status', 0)
+				->get()
+				->row();
+			if ($existing) {
+				echo json_encode(array('res' => '0', 'msg' => 'PO Number already exists. Please use a different PO number.'));
+				return;
+			}
+		} else {
+			// For edit, check if PO exists and belongs to standalone flow
+			$po_check = $this->po->get_po_view_data($purchase_order_id);
+			if (!$po_check) {
+				echo json_encode(array('res' => '0', 'msg' => 'Purchase order not found.'));
+				return;
+			}
+			// Check if PO number changed and new number already exists
+			if ($po_check->purchase_order_no != $po_number) {
+				$existing = $this->db->select('purchase_order_id')
+					->from('tbl_purchase_order')
+					->where('purchase_order_no', $po_number)
+					->where('status', 0)
+					->where('purchase_order_id !=', $purchase_order_id)
+					->get()
+					->row();
+				if ($existing) {
+					echo json_encode(array('res' => '0', 'msg' => 'PO Number already exists. Please use a different PO number.'));
+					return;
+				}
+			}
 		}
 		
 		// Date validation
@@ -363,16 +450,35 @@ class Purchaseorder_listing extends CI_controller
 			'step' => 1,
 			'status' => 0,
 			'grand_total' => 0,
-			'cdate' => date('Y-m-d H:i:s'),
 		);
-		$po_id = $this->po_master->insertpo($po_data);
-		if (!$po_id) {
-			$this->db->trans_rollback();
-			echo json_encode(array('res' => '0', 'msg' => 'Failed to create PO.'));
-			return;
-		}
 		
 		$this->load->model('admin_purchase_order_product', 'po_product');
+		
+		if ($is_edit) {
+			$po_data['mdate'] = date('Y-m-d H:i:s');
+			// Delete existing product rows and packing data
+			$existing_trns = $this->po->get_standalone_po_trns($purchase_order_id);
+			foreach ($existing_trns as $trn) {
+				$this->po_product->delete_product_packing($trn->purchaseordertrn_id);
+				$this->po_product->delete_product($trn->purchaseordertrn_id);
+			}
+			// Update PO
+			$update_result = $this->po_master->po_update($po_data, $purchase_order_id);
+			if (!$update_result) {
+				$this->db->trans_rollback();
+				echo json_encode(array('res' => '0', 'msg' => 'Failed to update PO.'));
+				return;
+			}
+			$po_id = $purchase_order_id;
+		} else {
+			$po_data['cdate'] = date('Y-m-d H:i:s');
+			$po_id = $this->po_master->insertpo($po_data);
+			if (!$po_id) {
+				$this->db->trans_rollback();
+				echo json_encode(array('res' => '0', 'msg' => 'Failed to create PO.'));
+				return;
+			}
+		}
 		$grand_total = 0;
 		$client_names = $this->input->post('client_name');
 		$pallet_type_ids = $this->input->post('pallet_type_id');

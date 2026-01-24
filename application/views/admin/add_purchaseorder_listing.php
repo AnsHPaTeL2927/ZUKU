@@ -48,6 +48,10 @@ $this->view('lib/header');
 		font-size: 16px;
 		color: #212529;
 	}
+	.po-field-disabled {
+		background-color: #e9ecef !important;
+		cursor: not-allowed;
+	}
 	.sequence-indicator {
 		text-align: right;
 		margin-bottom: 10px;
@@ -98,12 +102,12 @@ $this->view('lib/header');
 						<li>
 							<a href="<?= base_url('purchaseorder_listing') ?>">Purchase Order</a>
 						</li>
-						<li class="active">Create Purchase Order</li>
+						<li class="active"><?= (isset($edit_mode) && $edit_mode) ? 'Edit Purchase Order' : 'Create Purchase Order' ?></li>
 					</ol>
 
 					<div class="page-header">
-						<h3>Create Purchase Order</h3>
-						<p class="text-muted">Add new purchase order details</p>
+						<h3><?= (isset($edit_mode) && $edit_mode) ? 'Edit Purchase Order' : 'Create Purchase Order' ?></h3>
+						<p class="text-muted"><?= (isset($edit_mode) && $edit_mode) ? 'Update purchase order details' : 'Add new purchase order details' ?></p>
 					</div>
 				</div>
 			</div>
@@ -120,20 +124,23 @@ $this->view('lib/header');
 						<div class="panel-body">
 
 							<form id="po-form" method="post">
+								<?php if (isset($edit_mode) && $edit_mode && isset($po_data) && $po_data): ?>
+									<input type="hidden" name="purchase_order_id" id="purchase-order-id" value="<?= (int)$po_data->purchase_order_id ?>">
+								<?php endif; ?>
 
 								<!-- BASIC INFO -->
 								<div class="row">
 									<div class="col-md-6">
 										<div class="form-group">
 											<label>PO Number (SR.NO)</label>
-											<input type="text" name="po_number" id="po-number" class="form-control" placeholder="Enter PO number" required maxlength="100">
+											<input type="text" name="po_number" id="po-number" class="form-control<?= (isset($edit_mode) && $edit_mode) ? ' po-field-disabled' : '' ?>" placeholder="Enter PO number" required maxlength="100" value="<?= (isset($edit_mode) && $edit_mode && isset($po_data) && $po_data) ? htmlspecialchars($po_data->purchase_order_no) : '' ?>"<?= (isset($edit_mode) && $edit_mode) ? ' readonly' : '' ?>>
 										</div>
 									</div>
 									<div class="col-md-6">
 										<div class="form-group">
 											<label>Date</label>
 											<div class="date-input-wrapper">
-												<input type="text" name="po_date" id="po-date" class="form-control date-picker" value="<?= date('d-m-Y') ?>" required readonly>
+												<input type="text" name="po_date" id="po-date" class="form-control date-picker<?= (isset($edit_mode) && $edit_mode) ? ' po-field-disabled' : '' ?>" value="<?= (isset($edit_mode) && $edit_mode && isset($po_data) && $po_data && !empty($po_data->purchase_order_date)) ? date('d-m-Y', strtotime($po_data->purchase_order_date)) : date('d-m-Y') ?>" required readonly>
 												<i class="fa fa-calendar"></i>
 											</div>
 										</div>
@@ -191,14 +198,16 @@ $this->view('lib/header');
 									</div>
 								</div>
 
-								<input type="hidden" id="weight-per-box" name="weight_per_box" value="0">
-								<input type="hidden" id="sqm-per-box" name="sqm_per_box" value="0">
+								<input type="hidden" id="weight-per-box" name="weight_per_box" value="<?= (isset($edit_mode) && $edit_mode && isset($po_products) && !empty($po_products) && isset($po_products[0])) ? (float)$po_products[0]->weight_per_box : '0' ?>">
+								<input type="hidden" id="sqm-per-box" name="sqm_per_box" value="<?= (isset($edit_mode) && $edit_mode && isset($po_products) && !empty($po_products) && isset($po_products[0])) ? (float)$po_products[0]->sqm_per_box : '0' ?>">
 								<input type="hidden" id="empty-pallet-weight" value="50">
-								<input type="hidden" name="product_id" id="form-product-id" value="">
-								<input type="hidden" id="form-product-size-id" value="">
-								<input type="hidden" name="description_goods" id="form-description-goods" value="">
+								<input type="hidden" name="product_id" id="form-product-id" value="<?= (isset($edit_mode) && $edit_mode && isset($po_products) && !empty($po_products) && isset($po_products[0])) ? (int)$po_products[0]->product_id : '' ?>">
+								<input type="hidden" id="form-product-size-id" value="<?= (isset($edit_mode) && $edit_mode && isset($po_products) && !empty($po_products) && isset($po_products[0])) ? (int)$po_products[0]->product_size_id : '' ?>">
+								<input type="hidden" name="description_goods" id="form-description-goods" value="<?= (isset($edit_mode) && $edit_mode && isset($po_products) && !empty($po_products) && isset($po_products[0])) ? htmlspecialchars($po_products[0]->description_goods ?? '') : '' ?>">
 								<script>
 								var allSizeProductData = <?= json_encode($allsizeproduct ?? array()) ?>;
+								var editMode = <?= (isset($edit_mode) && $edit_mode) ? 'true' : 'false' ?>;
+								var editPoProducts = <?= (isset($edit_mode) && $edit_mode && isset($po_products)) ? json_encode($po_products) : '[]' ?>;
 								</script>
 
 								<!-- PRODUCT TABLE (Design, Finish, Pallet Type, Box Design from DB) -->
@@ -218,9 +227,95 @@ $this->view('lib/header');
 											</tr>
 										</thead>
 										<tbody id="product-tbody">
-											<tr class="product-row product-row-empty">
-												<td colspan="9" class="text-center text-muted">Select Product, Size, and Packing above to add rows.</td>
-											</tr>
+											<?php if (isset($edit_mode) && $edit_mode && isset($po_products) && !empty($po_products)): ?>
+												<?php 
+												$row_count = 0;
+												foreach ($po_products as $prod): 
+													if (empty($prod->packing)) continue;
+													foreach ($prod->packing as $pack):
+														$row_count++;
+												?>
+												<tr class="product-row" data-row="<?= $row_count ?>">
+													<td>
+														<select name="design_id[]" class="form-control design-select" data-row="<?= $row_count ?>">
+															<option value="">Select Design</option>
+															<?php
+															if (isset($designs_data[$prod->product_id])):
+																foreach ($designs_data[$prod->product_id] as $d):
+																	$selected = ((int)$d->packing_model_id === (int)$pack->design_id) ? 'selected' : '';
+															?>
+																	<option value="<?= (int)$d->packing_model_id ?>" <?= $selected ?>><?= htmlspecialchars($d->model_name) ?></option>
+															<?php 
+																endforeach;
+															endif;
+															?>
+														</select>
+													</td>
+													<td>
+														<select name="finish_id[]" class="form-control finish-select" data-row="<?= $row_count ?>" data-selected-finish="<?= (int)($pack->finish_id ?? 0) ?>">
+															<option value="">Select Finish</option>
+															<?php
+															if (!empty($pack->design_id) && isset($finishes_data[$pack->design_id])):
+																foreach ($finishes_data[$pack->design_id] as $f):
+																	$selected = ((int)$f->finish_id === (int)$pack->finish_id) ? 'selected' : '';
+															?>
+																	<option value="<?= (int)$f->finish_id ?>" <?= $selected ?>><?= htmlspecialchars($f->finish_name) ?></option>
+															<?php 
+																endforeach;
+															endif;
+															?>
+														</select>
+													</td>
+													<td>
+														<input type="text" name="client_name[]" class="form-control" placeholder="Client Design Name" value="<?= htmlspecialchars($pack->client_name ?? '') ?>">
+													</td>
+													<td>
+														<input type="number" name="no_of_pallet[]" value="<?= (int)$pack->no_of_pallet ?>" class="form-control pallet-qty-input" min="0">
+													</td>
+													<td>
+														<select name="pallet_type_id[]" class="form-control">
+															<option value="">Select Pallet Type</option>
+															<?php foreach ($pallet_type as $p): 
+																$selected = ((int)$p->pallet_type_id === (int)($pack->pallet_type_id ?? 0)) ? 'selected' : '';
+															?>
+																<option value="<?= (int)$p->pallet_type_id ?>" <?= $selected ?>><?= htmlspecialchars($p->pallet_type_name) ?></option>
+															<?php endforeach; ?>
+														</select>
+													</td>
+													<td>
+														<input type="number" name="no_of_boxes[]" value="<?= (int)$pack->no_of_boxes ?>" class="form-control boxes-input" min="0">
+													</td>
+													<td>
+														<select name="box_design_id[]" class="form-control">
+															<option value="">Select Box Design</option>
+															<?php foreach ($box_design as $b): 
+																$selected = ((int)$b->box_design_id === (int)($pack->box_design_id ?? 0)) ? 'selected' : '';
+															?>
+																<option value="<?= (int)$b->box_design_id ?>" <?= $selected ?>><?= htmlspecialchars($b->box_design_name) ?></option>
+															<?php endforeach; ?>
+														</select>
+													</td>
+													<td>
+														<input type="number" name="no_of_sqm[]" value="<?= number_format((float)$pack->no_of_sqm, 2, '.', '') ?>" step="0.01" class="form-control sqm-input" min="0" readonly>
+													</td>
+													<td>
+														<button type="button" class="btn btn-danger btn-sm remove-row"><i class="fa fa-trash"></i> Remove</button>
+													</td>
+												</tr>
+												<?php 
+													endforeach;
+												endforeach;
+												if ($row_count == 0):
+												?>
+												<tr class="product-row product-row-empty">
+													<td colspan="9" class="text-center text-muted">No product rows found.</td>
+												</tr>
+												<?php endif; ?>
+											<?php else: ?>
+												<tr class="product-row product-row-empty">
+													<td colspan="9" class="text-center text-muted">Select Product, Size, and Packing above to add rows.</td>
+												</tr>
+											<?php endif; ?>
 										</tbody>
 										<tfoot>
 											<tr>
@@ -268,7 +363,7 @@ $this->view('lib/header');
 								<!-- ACTION BUTTONS -->
 								<div class="text-right">
 									<a href="<?= base_url('purchaseorder_listing') ?>" class="btn btn-default">Cancel</a>
-									<button type="submit" class="btn btn-success" id="po-submit-btn">Save PO</button>
+									<button type="submit" class="btn btn-success" id="po-submit-btn"><?= (isset($edit_mode) && $edit_mode) ? 'Update PO' : 'Save PO' ?></button>
 								</div>
 
 							</form>
@@ -313,12 +408,14 @@ function calculateWeights() {
 }
 
 $(document).ready(function() {
-	$('#po-date').datepicker({
-		format: 'dd-mm-yyyy',
-		autoclose: true,
-		todayHighlight: true,
-		orientation: 'bottom auto'
-	});
+	if (typeof editMode === 'undefined' || !editMode) {
+		$('#po-date').datepicker({
+			format: 'dd-mm-yyyy',
+			autoclose: true,
+			todayHighlight: true,
+			orientation: 'bottom auto'
+		});
+	}
 
 	// Product selection - filter sizes
 	$('#product-select').on('change', function() {
@@ -379,7 +476,10 @@ $(document).ready(function() {
 	// Packing selection - load product details and auto-add first row
 	$('#packing-select').on('change', function() {
 		var id = $(this).val();
-		$('#product-tbody').html('<tr class="product-row product-row-empty"><td colspan="9" class="text-center text-muted">Select Product, Size, and Packing above to add rows.</td></tr>');
+		// Only clear rows if not in edit mode or if rows are empty
+		if (typeof editMode === 'undefined' || !editMode || $('#product-tbody tr.product-row').not('.product-row-empty').length === 0) {
+			$('#product-tbody').html('<tr class="product-row product-row-empty"><td colspan="9" class="text-center text-muted">Select Product, Size, and Packing above to add rows.</td></tr>');
+		}
 		calculateWeights();
 		if (!id) {
 			$('#form-product-size-id').val('');
@@ -398,20 +498,22 @@ $(document).ready(function() {
 			$('#weight-per-box').val(d.weight_per_box);
 			$('#sqm-per-box').val(d.sqm_per_box);
 			window.poDesignHtml = d.design_html;
-			// Auto-add first row
-			var pid = d.product_id;
-			if (pid) {
-				poRowCount = 1;
-				$.post(root + 'purchaseorder_listing/add_design_row_po', { product_id: pid, row_no: poRowCount }, function(r) {
-					var d2 = typeof r === 'string' ? JSON.parse(r) : r;
-					if (d2.html) {
-						$('.product-row-empty').remove();
-						$('#product-tbody').append(d2.html);
-						calculateWeights();
-					}
-				}).fail(function() {
-					alert('Failed to add product row. Please try again.');
-				});
+			// Auto-add first row only if not in edit mode or if no rows exist
+			if (typeof editMode === 'undefined' || !editMode || $('#product-tbody tr.product-row').not('.product-row-empty').length === 0) {
+				var pid = d.product_id;
+				if (pid) {
+					poRowCount = 1;
+					$.post(root + 'purchaseorder_listing/add_design_row_po', { product_id: pid, row_no: poRowCount }, function(r) {
+						var d2 = typeof r === 'string' ? JSON.parse(r) : r;
+						if (d2.html) {
+							$('.product-row-empty').remove();
+							$('#product-tbody').append(d2.html);
+							calculateWeights();
+						}
+					}).fail(function() {
+						alert('Failed to add product row. Please try again.');
+					});
+				}
 			}
 		}).fail(function() {
 			alert('Failed to load packing details. Please try again.');
@@ -422,6 +524,7 @@ $(document).ready(function() {
 		var designId = $(this).val();
 		var $row = $(this).closest('tr');
 		var $finish = $row.find('.finish-select');
+		var selectedFinish = $finish.data('selected-finish') || $finish.val();
 		$finish.html('<option value="">Loading...</option>');
 		if (!designId) { 
 			$finish.html('<option value="">Select Finish</option>'); 
@@ -430,6 +533,10 @@ $(document).ready(function() {
 		$.post(root + 'purchaseorder_listing/load_finish_po', { id: designId }, function(r) {
 			var d = typeof r === 'string' ? JSON.parse(r) : r;
 			$finish.html(d.html || '<option value="">Select Finish</option>');
+			// Restore selected finish if it exists
+			if (selectedFinish) {
+				$finish.val(selectedFinish);
+			}
 		}).fail(function() {
 			$finish.html('<option value="">Error loading finishes</option>');
 			alert('Failed to load finish options. Please try again.');
@@ -529,7 +636,8 @@ $(document).ready(function() {
 			return;
 		}
 		
-		var $btn = $('#po-submit-btn').prop('disabled', true).text('Saving...');
+		var btnText = (typeof editMode !== 'undefined' && editMode) ? 'Updating...' : 'Saving...';
+		var $btn = $('#po-submit-btn').prop('disabled', true).text(btnText);
 		$.ajax({
 			url: root + 'purchaseorder_listing/save_purchase_order',
 			type: 'POST',
@@ -541,19 +649,74 @@ $(document).ready(function() {
 					window.location = root + 'purchaseorder_listing/view_po/' + r.purchase_order_id;
 				} else {
 					alert(r.msg || 'Error saving purchase order.');
-					$btn.prop('disabled', false).text('Save PO');
+					var btnText = (typeof editMode !== 'undefined' && editMode) ? 'Update PO' : 'Save PO';
+					$btn.prop('disabled', false).text(btnText);
 				}
 			},
 			error: function(xhr, status, error) {
 				console.error('AJAX Error:', status, error);
 				alert('Request failed. Please check your connection and try again.');
-				$btn.prop('disabled', false).text('Save PO');
+				var btnText = (typeof editMode !== 'undefined' && editMode) ? 'Update PO' : 'Save PO';
+				$btn.prop('disabled', false).text(btnText);
 			},
 			complete: function() {
 				// Button state handled in success/error
 			}
 		});
 	});
+
+	// Initialize edit mode if applicable
+	if (typeof editMode !== 'undefined' && editMode && typeof editPoProducts !== 'undefined' && editPoProducts.length > 0) {
+		var firstProd = editPoProducts[0];
+		if (firstProd.product_id && firstProd.product_size_id) {
+			// Count existing rows for poRowCount
+			poRowCount = $('#product-tbody tr.product-row').not('.product-row-empty').length;
+			if (poRowCount === 0) {
+				poRowCount = 1;
+			}
+			
+			// Set product
+			$('#product-select').val(firstProd.product_id);
+			
+			// Populate sizes for this product
+			var sizes = {};
+			allSizeProductData.forEach(function(item) {
+				if (parseInt(item.product_id) === parseInt(firstProd.product_id) && item.size_type_mm) {
+					var sizeKey = item.size_type_mm;
+					if (!sizes[sizeKey]) {
+						sizes[sizeKey] = { size: sizeKey, thickness: item.thickness || '' };
+					}
+				}
+			});
+			$('#size-select').html('<option value="">Select Size</option>');
+			$.each(sizes, function(key, val) {
+				var label = val.size + (val.thickness ? ' - ' + val.thickness + ' MM' : '');
+				var selected = (key === firstProd.size_type_mm) ? 'selected' : '';
+				$('#size-select').append('<option value="' + key + '" ' + selected + '>' + label + '</option>');
+			});
+			
+			// Populate packings for this product and size
+			var packings = {};
+			allSizeProductData.forEach(function(item) {
+				if (parseInt(item.product_id) === parseInt(firstProd.product_id) && item.size_type_mm === firstProd.size_type_mm && item.product_packing_name) {
+					var packKey = parseInt(item.product_size_id);
+					if (!packings[packKey]) {
+						packings[packKey] = item.product_packing_name;
+					}
+				}
+			});
+			$('#packing-select').html('<option value="">Select Packing</option>');
+			$.each(packings, function(id, name) {
+				var selected = (parseInt(id) === parseInt(firstProd.product_size_id)) ? 'selected' : '';
+				$('#packing-select').append('<option value="' + id + '" ' + selected + '>' + name + '</option>');
+			});
+			
+			// Calculate weights with existing rows
+			setTimeout(function() {
+				calculateWeights();
+			}, 300);
+		}
+	}
 });
 </script>
 
