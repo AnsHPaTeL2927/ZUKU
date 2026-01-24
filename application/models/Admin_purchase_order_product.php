@@ -628,4 +628,25 @@ class Admin_purchase_order_product extends CI_model
 		 $query = $this->db->query($q);
 		 return $query->row();
 	}
+
+	/**
+	 * Rate from tbl_design_rate by product_id + finish_id. Returns design_rate, product_rate_per.
+	 */
+	public function get_design_rate_from_tbl_design_rate($product_id, $finish_id)
+	{
+		$product_id = (int) $product_id;
+		$finish_id = (int) $finish_id;
+		if (!$product_id || !$finish_id) {
+			return null;
+		}
+		$q = $this->db->select('design_rate, product_rate_per')
+			->from('tbl_design_rate')
+			->where('status', 0)
+			->where('product_id', $product_id)
+			->where('finish_id', $finish_id)
+			->order_by('design_rate_id', 'DESC')
+			->limit(1)
+			->get();
+		return $q->row();
+	}
 }
