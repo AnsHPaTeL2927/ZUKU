@@ -74,6 +74,9 @@ class Purchaseorder_listing extends CI_controller
 			$viewinvoice = '';
 			$viewinvoice1 = '';
 			$pallet_order = '';
+			$view_action = '<li>
+				<a class="tooltips" data-toggle="tooltip" data-title="View" href="' . base_url('purchaseorder_listing/view_po/' . $row->purchase_order_id) . '"><i class="fa fa-eye"></i> View</a>
+			</li>';
 			if ($row->step == 2) {
 
 				$viewinvoice = '<li>
@@ -129,6 +132,7 @@ class Purchaseorder_listing extends CI_controller
 								<button class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown">Action
 								<span class="caret"></span></button>
 								<ul class="dropdown-menu">
+									 ' . $view_action . '
 									 ' . $edit . '
 									 ' . $viewinvoice . '
 									 ' . $delete . '
