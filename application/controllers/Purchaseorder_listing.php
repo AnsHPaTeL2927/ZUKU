@@ -76,6 +76,9 @@ class Purchaseorder_listing extends CI_controller
 			$view_action = '<li>
 				<a class="tooltips" data-toggle="tooltip" data-title="View" href="' . base_url('purchaseorder_listing/view_po/' . $row->purchase_order_id) . '"><i class="fa fa-eye"></i> View</a>
 			</li>';
+			$move_to_pi = '<li>
+				<a class="tooltips" data-toggle="tooltip" data-title="Move to PI" href="' . base_url('purchaseorder_listing/move_to_pi/' . $row->purchase_order_id) . '"><i class="fa fa-share"></i> Move to PI</a>
+			</li>';
 			if ($row->step == 2) {
 
 				$viewinvoice = '<li>
@@ -132,6 +135,7 @@ class Purchaseorder_listing extends CI_controller
 								<span class="caret"></span></button>
 								<ul class="dropdown-menu">
 									 ' . $view_action . '
+									 ' . $move_to_pi . '
 									 ' . $edit . '
 									 ' . $viewinvoice . '
 									 ' . $delete . '
@@ -626,5 +630,18 @@ class Purchaseorder_listing extends CI_controller
 			'menu_data' => $this->menu->usermain_menu($this->session->usertype_id),
 		);
 		$this->load->view('admin/view_purchaseorder_listing', $v);
+	}
+
+	/**
+	 * Move to PI – redirect to Performa Invoice listing with PO context.
+	 */
+	public function move_to_pi($id)
+	{
+		if (empty($this->session->id) || $this->session->title != TITLE) {
+			redirect(base_url() . '');
+			return;
+		}
+		$id = (int) $id;
+		redirect(base_url('invoice_listing') . '?move_po_id=' . $id);
 	}
 }
