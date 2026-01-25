@@ -37,8 +37,22 @@ class Invoice_listing extends CI_controller
 	  {
 	 	$cust_id = $this->input->get('cust_id');
 		$invoice_status = $this->input->get('invoice_status');
-		$invoicedate = explode(" - ",$this->input->get('date'));
-		$where = ' and performa_date BETWEEN "'.date('Y-m-d',strtotime($invoicedate[0])).'" and "'.date('Y-m-d',strtotime($invoicedate[1])).'"';
+		if ($invoice_status === null || $invoice_status === '') {
+			$invoice_status = '0';
+		}
+		$dateVal = $this->input->get('date');
+		if (empty($dateVal) || strpos($dateVal, ' - ') === false) {
+			$year = date('n') > 3 ? date('d/m/Y', strtotime('1 April ' . date('Y'))) . ' - ' . date('d/m/Y', strtotime('31 March ' . (date('Y') + 1))) : date('d/m/Y', strtotime('1 April ' . (date('Y') - 1))) . ' - ' . date('d/m/Y', strtotime('31 March ' . date('Y')));
+			$dateVal = $year;
+		}
+		$invoicedate = explode(" - ", $dateVal);
+		$start = isset($invoicedate[0]) ? strtotime(trim($invoicedate[0])) : strtotime('-1 year');
+		$end = isset($invoicedate[1]) ? strtotime(trim($invoicedate[1])) : strtotime('today');
+		if ($start === false) { $start = strtotime('-1 year'); }
+		if ($end === false) { $end = strtotime('today'); }
+		$where = ' and performa_date BETWEEN "' . date('Y-m-d', $start) . '" and "' . date('Y-m-d', $end) . '"';
+
+		$countGet = array('iDisplayLength' => '-1');
 		 
 		if($invoice_status==1)
 		{
@@ -65,8 +79,8 @@ class Invoice_listing extends CI_controller
 			$where .= ' and confirm_status=2';
 		 
 		}
-		$_SESSION['pi_s_date'] = $invoicedate[0];
-		$_SESSION['pi_e_date'] = $invoicedate[1];
+		$_SESSION['pi_s_date'] = isset($invoicedate[0]) ? trim($invoicedate[0]) : '';
+		$_SESSION['pi_e_date'] = isset($invoicedate[1]) ? trim($invoicedate[1]) : '';
 		$_SESSION['pi_step_status'] = $invoice_status;
 		
 		if(!empty($cust_id))
@@ -82,8 +96,9 @@ class Invoice_listing extends CI_controller
 		// {
 			// $where .= " and find_in_set(mst.consigne_id,(SELECT GROUP_CONCAT(customer_id) FROM `tbl_user_wise_customer` where user_id = ".$this->session->id." and status =0))";
 		// }
-		
-				$this->load->model('Pagging_model');//call module 
+
+		try {
+				$this->load->model('Pagging_model');
 				$aColumns = array('performa_invoice_id', 'invoice_no','performa_date','consign.c_companyname','mst.country_final_destination','mst.container_details','(SELECT GROUP_CONCAT(distinct  product.size_type_mm) from tbl_performa_trn as ptrn inner join tbl_product as product on product.product_id = ptrn.product_id where invoice_id = mst.performa_invoice_id) as size_ordered','(SELECT sum(no_of_boxes) from tbl_performa_packing as packing inner join tbl_performa_trn as ptrn on ptrn.performa_trn_id = packing.performa_trn_id where ptrn.invoice_id = mst.performa_invoice_id ) as total_boxes','(SELECT sum(no_of_sqm) from tbl_performa_packing as packing inner join tbl_performa_trn as ptrn on ptrn.performa_trn_id = packing.performa_trn_id where ptrn.invoice_id = mst.performa_invoice_id ) as total_sqm','grand_total','(SELECT DATEDIFF(CURDATE(),performa_date) FROM `tbl_performa_invoice` as daysinvoice where daysinvoice.performa_invoice_id = mst.performa_invoice_id ) as ago_days','user.user_name','mst.port_of_discharge','mst.status','mst.cdate','step','no_of_export','no_of_po','cur.currency_name','cur.currency_id','cur.currency_code','mst.consigne_id','addition_detail_status','confirm_status','consign.c_nick_name');
 				$isWhere = array("mst.status = 0 and confirm_status != 1".$where);
 				$table = "tbl_performa_invoice as mst";
@@ -94,11 +109,12 @@ class Invoice_listing extends CI_controller
 								'left join tbl_user user on user.user_id=mst.user_id'
 								);
 				$hOrder = "mst.performa_invoice_id desc";
-				 $sqlReturn = $this->Pagging_model->get_datatables($aColumns,$table,$hOrder,$isJOIN,$isWhere,$this->input->get());
+				 $sqlReturn = $this->Pagging_model->get_datatables($aColumns, $table, $hOrder, $isJOIN, $isWhere, $this->input->get());
 				$appData = array();
-				$no = ($this->input->get('iDisplayStart') + 1);
-				 
-				foreach($sqlReturn['data'] as $row)
+				$no = (int) $this->input->get('iDisplayStart') + 1;
+				$rows = isset($sqlReturn['data']) && is_array($sqlReturn['data']) ? $sqlReturn['data'] : array();
+
+				foreach ($rows as $row)
 				{
 					$row_data = array();
 					$step_status='';
@@ -135,48 +151,52 @@ class Invoice_listing extends CI_controller
 					$row_data[] = number_format($row->total_sqm,2,'.','');
 				 
 					 
-					$locale='en-US'; //browser or user locale
-					$currency=$row->currency_code; 
-					$fmt = new NumberFormatter( $locale."@currency=$currency", NumberFormatter::CURRENCY );
-					$currency_symbol = $fmt->getSymbol(NumberFormatter::CURRENCY_SYMBOL);
- 
-				 	$row_data[] = $currency_symbol.' '.number_format($row->grand_total,2,'.','');
-					
+					$currency = !empty($row->currency_code) ? $row->currency_code : 'USD';
+					$currency_symbol = '$';
+					if (class_exists('NumberFormatter')) {
+						try {
+							$fmt = new NumberFormatter('en-US@currency=' . $currency, NumberFormatter::CURRENCY);
+							$currency_symbol = $fmt->getSymbol(NumberFormatter::CURRENCY_SYMBOL);
+						} catch (Exception $e) {
+							$currency_symbol = ($currency === 'USD') ? '$' : $currency . ' ';
+						}
+					}
+
+					$row_data[] = $currency_symbol . ' ' . number_format((float) $row->grand_total, 2, '.', '');
+
 					$color = '';
-					$m = (int)($row->ago_days / 30);
-				 	$d = (int)($row->ago_days - (($m * 30) + ($w)));
-					$m = !empty($m)?$m.' Months ':'';
-					$label =  $m.$d.' days';
-				if( $row->ago_days > 7 &&  $row->ago_days < 14)
+					$ago_days = isset($row->ago_days) ? (int) $row->ago_days : 0;
+					$months = (int)($ago_days / 30);
+					$d = (int)($ago_days - ($months * 30));
+					$m_str = $months > 0 ? $months . ' Months ' : '';
+					$label = $m_str . $d . ' days';
+				if ($ago_days > 7 && $ago_days < 14)
 				{
 					
 					$color = '<a class="tooltips btn" style="background:green;color:#fff" data-toggle="tooltip" data-title="'. $label.'" href="javascript:;">'. $label.' </a>';
 				 
 				}
-				else if($row->ago_days >= 14 && $row->ago_days < 21)
+				else if ($ago_days >= 14 && $ago_days < 21)
 				{
 					$color = '<a class="tooltips btn" style="background:blue;color:#fff" data-toggle="tooltip" data-title="'. $label.'" href="javascript:;">'. $label.' </a>';
 				}
-				else if($row->ago_days  >= 21 &&$row->ago_days < 28)
+				else if ($ago_days >= 21 && $ago_days < 28)
 				{
 					$color = '<a class="tooltips btn" style="background:purple;color:#fff" data-toggle="tooltip" data-title="'. $label.'" href="javascript:;">'. $label.' </a>';
-					 
 				}
-				else if($row->ago_days >= 28 &&$row->ago_days < 60)
+				else if ($ago_days >= 28 && $ago_days < 60)
 				{
-					
 					$color = '<a class="tooltips btn" style="background:orange;color:#fff" data-toggle="tooltip" data-title="'. $label.'" href="javascript:;">'. $label.' </a>';
-					 
 				}
-				else if($row->ago_days  >= 60 &&$row->ago_days  < 90)
+				else if ($ago_days >= 60 && $ago_days < 90)
 				{
 					$color = '<a class="tooltips btn" style="background:gray;color:#fff" data-toggle="tooltip" data-title="'. $label.'" href="javascript:;">'. $label.' </a>';
 				}
-				else if($row->ago_days  >= 90)
+				else if ($ago_days >= 90)
 				{
 					$color = '<a class="tooltips btn" style="background:red;color:#fff" data-toggle="tooltip" data-title="'. $label.'" href="javascript:;">'. $label.' </a>';
 				}
-				else if( $row->ago_days == 0)
+				else if ($ago_days == 0)
 				{
 					$color = '<a class="tooltips btn btn-defualt" style="color:#333" data-toggle="tooltip" data-title="Today" href="javascript:;">Today</a>';
 				}
@@ -207,7 +227,7 @@ class Invoice_listing extends CI_controller
 							// </li>';
 					// }
 					
-					if($row->ago_days > 90)	
+					if ($ago_days > 90)	
 					{
 						if($row->confirm_status == 2)
 						{
@@ -263,15 +283,25 @@ class Invoice_listing extends CI_controller
 								 ';
 					 $appData[] = $row_data;
 				}
-			$totalrecord = $this->Pagging_model->count_all($aColumns,$table,$hOrder,$isJOIN,$isWhere,'');
-					$numrecord=$sqlReturn['data'];
+			$totalrecord = $this->Pagging_model->count_all($aColumns, $table, $hOrder, $isJOIN, $isWhere, $countGet);
+					$numrecord = is_array($sqlReturn['data']) ? count($sqlReturn['data']) : 0;
 				$output = array(
 							"sEcho" => intval($this->input->get('sEcho')),
-							"iTotalRecords" =>  $numrecord,
-							"iTotalDisplayRecords" =>$totalrecord,
+							"iTotalRecords" => (int) $totalrecord,
+							"iTotalDisplayRecords" => (int) $totalrecord,
 							"aaData" => $appData
 					);
-				echo json_encode( $output );
+				$this->output->set_content_type('application/json')->set_output(json_encode($output));
+		} catch (Exception $e) {
+				log_message('error', 'Invoice_listing fetch_record: ' . $e->getMessage());
+				$err = array(
+					'sEcho' => (int) $this->input->get('sEcho'),
+					'iTotalRecords' => 0,
+					'iTotalDisplayRecords' => 0,
+					'aaData' => array()
+				);
+				$this->output->set_content_type('application/json')->set_status_header(200)->set_output(json_encode($err));
+		}
 	  } 
 	  public function confirmpi()
 	  {

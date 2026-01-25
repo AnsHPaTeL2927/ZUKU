@@ -113,41 +113,47 @@ $this->view('lib/header');
 			   
             </div>
             <div class="panel-body">
-              <div class="table-responsive">
-                <table class="table table-bordered table-hover display" id="datatable" width="100%">
-                  <thead>
-                    <tr>
-                      <th>Status</th>
-                      <th>Proforma Invoice no</th>
-					            <th>Date</th>
-                      <th>Consignee Name</th>
-                      <th>Country Name</th>
-                      <th>No of container</th>
-                      <th>Product Detail</th>
-                      <th>Total Box</th>
-                      <th>Total Sqm</th>
-                      <th>Total Amount</th>
-                      <th>Days Ago</th>
-                      <th>Created By</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                   </tbody>
-				   <tfoot>
-				   <tr>
-                      <th colspan="5" class="text-right">Total</th>
-                      <th></th>
-					  <th></th>
-                      <th></th>
-                      <th></th>
-                      <th></th>
-                      <th></th>
-                      <th></th>
-                      <th></th>
-                     </tr>
-				   </tfoot>
-                </table>
+              <div class="invoice-table-scroll-wrapper">
+                <div id="invoice-table-loader" class="invoice-table-loader" style="display:none;">
+                  <img src="<?php echo base_url('adminast/assets/images/loader.gif'); ?>" alt="" />
+                  <span>Loading ...</span>
+                </div>
+                <div class="table-responsive">
+                  <table class="table table-bordered table-hover display" id="datatable" width="100%">
+                    <thead>
+                      <tr>
+                        <th>Status</th>
+                        <th>Proforma Invoice no</th>
+                        <th>Date</th>
+                        <th>Consignee Name</th>
+                        <th>Country Name</th>
+                        <th>No of container</th>
+                        <th>Product Detail</th>
+                        <th>Total Box</th>
+                        <th>Total Sqm</th>
+                        <th>Total Amount</th>
+                        <th>Days Ago</th>
+                        <th>Created By</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                    <tfoot>
+                      <tr>
+                        <th colspan="5" class="text-right">Total</th>
+                        <th></th>
+                        <th></th>
+                        <th></th>
+                        <th></th>
+                        <th></th>
+                        <th></th>
+                        <th></th>
+                        <th></th>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
@@ -156,6 +162,45 @@ $this->view('lib/header');
     </div>
   </div>
 </div>
+<style>
+.invoice-table-scroll-wrapper {
+  position: relative;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  min-height: 200px;
+}
+.invoice-table-scroll-wrapper .table-responsive {
+  overflow-x: visible;
+  overflow-y: visible;
+  min-width: 0;
+}
+.invoice-table-scroll-wrapper #datatable {
+  min-width: 1600px;
+  width: 100% !important;
+}
+.invoice-table-loader {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.9);
+  z-index: 10;
+  gap: 10px;
+}
+.invoice-table-loader img {
+  display: block;
+}
+.invoice-table-loader span {
+  font-size: 14px;
+  color: #333;
+}
+</style>
 <div id="myModal" class="modal fade" role="dialog">
   <div class="modal-dialog modal-lg"> 
     <!-- Modal content-->
@@ -357,8 +402,8 @@ $('#daterange').daterangepicker({
     }, cb); 
  
 $(document).ready(function (){
-	closeNav();
-	 	load_data_table();		
+	if (typeof closeNav === 'function') closeNav();
+	load_data_table();
 });
 
 function filterbystatus()
@@ -391,7 +436,7 @@ function load_data_table() {
             { "bSortable": true },
             { "bSortable": false }
         ],
-        "bProcessing": true,
+        "bProcessing": false,
         "searchDelay": 350,
         "bServerSide": true,
         "bDestroy": true,
@@ -476,6 +521,30 @@ function load_data_table() {
         "sAjaxSource": root + 'invoice_listing/fetch_record/',
         "fnServerParams": function (aoData) {
             aoData.push({ "name": "mode", "value": "fetch" }, { "name": "invoice_status", "value": $("input[name='invoice_status']:checked").val() }, { "name": "date", "value": $("#daterange").val() }, { "name": "cust_id", "value": $("#cust_id").val() });
+        },
+        "fnServerData": function (sSource, aoData, fnCallback, oSettings) {
+            var sEcho = 1;
+            for (var i = 0; i < aoData.length; i++) {
+                if (aoData[i].name === 'sEcho') { sEcho = parseInt(aoData[i].value, 10); break; }
+            }
+            var $loader = $('#invoice-table-loader');
+            $loader.css('display', 'flex');
+            $.ajax({
+                url: sSource,
+                data: aoData,
+                dataType: 'json',
+                type: 'GET',
+                cache: false,
+                success: function (json) {
+                    $loader.hide();
+                    fnCallback(json);
+                },
+                error: function (xhr, err, thrown) {
+                    $loader.hide();
+                    console.warn('Proforma Invoice fetch error:', err, thrown);
+                    fnCallback({ sEcho: sEcho, iTotalRecords: 0, iTotalDisplayRecords: 0, aaData: [] });
+                }
+            });
         },
         "fnDrawCallback": function (oSettings) {
             $('.ttip, [data-toggle="tooltip"]').tooltip();
