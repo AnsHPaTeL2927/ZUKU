@@ -58,7 +58,7 @@ class Purchaseorder_listing extends CI_controller
 		$_SESSION['pur_e_date'] = $invoicedate[1];
 
 		$this->load->model('Pagging_model'); //call module 
-		$aColumns = array('purchase_order_id', 'purchase_order_no', 'seller_ref_no', 'supplier.supplier_name', 'supplier.company_name', 'purchase_order_date', 'mst.grand_total', 'mst.status', 'mst.cdate', 'mst.step', 'mst.production_mst_id');
+		$aColumns = array('purchase_order_id', 'purchase_order_no', 'seller_ref_no', 'supplier.supplier_name', 'supplier.company_name', 'purchase_order_date', 'mst.grand_total', 'mst.status', 'mst.cdate', 'mst.step', 'mst.production_mst_id', 'mst.performa_invoice_id');
 		$isWhere = array("mst.status = 0" . $where);
 		$table = "tbl_purchase_order as mst";
 		$isJOIN = array('left join  tbl_supplier supplier on supplier.supplier_id=mst.seller_id');
@@ -76,9 +76,16 @@ class Purchaseorder_listing extends CI_controller
 			$view_action = '<li>
 				<a class="tooltips" data-toggle="tooltip" data-title="View" href="' . base_url('purchaseorder_listing/view_po/' . $row->purchase_order_id) . '"><i class="fa fa-eye"></i> View</a>
 			</li>';
-			$move_to_pi = '<li>
-				<a class="tooltips" data-toggle="tooltip" data-title="Move to PI" href="' . base_url('purchaseorder_listing/move_to_pi/' . $row->purchase_order_id) . '"><i class="fa fa-share"></i> Move to PI</a>
-			</li>';
+			
+			// Check if PO has been moved to PI (step = 2 or performa_invoice_id is set)
+			$is_moved_to_pi = ($row->step == 2 || (!empty($row->performa_invoice_id) && $row->performa_invoice_id > 0));
+			
+			$move_to_pi = '';
+			if (!$is_moved_to_pi) {
+				$move_to_pi = '<li>
+					<a class="tooltips" data-toggle="tooltip" data-title="Move to PI" href="' . base_url('purchaseorder_listing/move_to_pi/' . $row->purchase_order_id) . '"><i class="fa fa-share"></i> Move to PI</a>
+				</li>';
+			}
 			if ($row->step == 2) {
 
 				$viewinvoice = '<li>
@@ -119,16 +126,18 @@ class Purchaseorder_listing extends CI_controller
 
 			$row_data[] =  "$ " . number_format($row->grand_total, 2);
 
-			$edit = '
-			<li>
-				<a class="tooltips" data-toggle="tooltip" data-title="Edit" href="' . base_url() . 'purchaseorder_listing/edit_purchase_order/' . $row->purchase_order_id . '"><i class="fa fa-pencil"></i>Edit</a>
-				
-			</li>';
-			$delete = ' <li><a class="tooltips" data-toggle="tooltip" data-title="Detele"  onclick="delete_record(' . $row->purchase_order_id . ',&quot;' . $row->production_mst_id . '&quot;)" href="javascript:;" ><i class="fa fa-trash"></i> Detele</a>
-			</li>';
-			if ($row->export_status == 1) {
-				$edit = '';
-				$delete = '';
+			$edit = '';
+			$delete = '';
+			
+			// Disable edit and delete if moved to PI or export_status = 1
+			if (!$is_moved_to_pi && $row->export_status != 1) {
+				$edit = '
+				<li>
+					<a class="tooltips" data-toggle="tooltip" data-title="Edit" href="' . base_url() . 'purchaseorder_listing/edit_purchase_order/' . $row->purchase_order_id . '"><i class="fa fa-pencil"></i>Edit</a>
+					
+				</li>';
+				$delete = ' <li><a class="tooltips" data-toggle="tooltip" data-title="Detele"  onclick="delete_record(' . $row->purchase_order_id . ',&quot;' . $row->production_mst_id . '&quot;)" href="javascript:;" ><i class="fa fa-trash"></i> Detele</a>
+				</li>';
 			}
 			$row_data[] = '<div class="dropdown">
 								<button class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown">Action
@@ -633,7 +642,7 @@ class Purchaseorder_listing extends CI_controller
 	}
 
 	/**
-	 * Move to PI – redirect to Performa Invoice listing with PO context.
+	 * Move to PI – Copy Purchase Order data to Proforma Invoice and redirect to listing.
 	 */
 	public function move_to_pi($id)
 	{
@@ -641,7 +650,194 @@ class Purchaseorder_listing extends CI_controller
 			redirect(base_url() . '');
 			return;
 		}
-		$id = (int) $id;
-		redirect(base_url('invoice_listing') . '?move_po_id=' . $id);
+		
+		$purchase_order_id = (int) $id;
+		if (!$purchase_order_id) {
+			redirect(base_url('purchaseorder_listing'));
+			return;
+		}
+		
+		// Get purchase order data
+		$po_data = $this->po->get_po_view_data($purchase_order_id);
+		if (!$po_data) {
+			redirect(base_url('purchaseorder_listing'));
+			return;
+		}
+		
+		// Check if already moved
+		if (!empty($po_data->performa_invoice_id) && $po_data->performa_invoice_id > 0) {
+			redirect(base_url('invoice_listing'));
+			return;
+		}
+		
+		// Get transaction records
+		$po_trns = $this->po->get_standalone_po_trns($purchase_order_id);
+		if (empty($po_trns)) {
+			redirect(base_url('purchaseorder_listing'));
+			return;
+		}
+		
+		// Start transaction
+		$this->db->trans_start();
+		
+		// Generate invoice number (using PO number as base or generate new)
+		$this->load->model('admin_invoice', 'invoice');
+		$invoice_no = 'PI-' . $po_data->purchase_order_no . '-' . date('Ymd');
+		$check_invoice_no = $this->invoice->check_performa_no($invoice_no);
+		$counter = 1;
+		while ($check_invoice_no) {
+			$invoice_no = 'PI-' . $po_data->purchase_order_no . '-' . date('Ymd') . '-' . $counter;
+			$check_invoice_no = $this->invoice->check_performa_no($invoice_no);
+			$counter++;
+		}
+		
+		// Create proforma invoice record
+		$pi_data = array(
+			'invoice_no' => $invoice_no,
+			'performa_date' => $po_data->purchase_order_date ?: date('Y-m-d'),
+			'consigne_id' => 0, // PO has supplier, PI has customer - set to 0 or get from supplier mapping if exists
+			'country_origin_goods' => 'INDIA',
+			'port_of_discharge' => '',
+			'final_destination' => '',
+			'country_final_destination' => '',
+			'container_details' => $po_data->container_details ?: 0,
+			'grand_total' => $po_data->grand_total ?: 0,
+			'step' => 1,
+			'confirm_status' => 0,
+			'status' => 0,
+			'user_id' => $this->session->id,
+			'cdate' => date('Y-m-d H:i:s'),
+			'mdate' => date('Y-m-d H:i:s'),
+		);
+		
+		$performa_invoice_id = $this->invoice->performainvoice_insert($pi_data);
+		
+		if (!$performa_invoice_id) {
+			$this->db->trans_rollback();
+			redirect(base_url('purchaseorder_listing'));
+			return;
+		}
+		
+		// Copy transaction records
+		$trn_mapping = array(); // Map purchaseordertrn_id to performa_trn_id
+		$this->load->model('admin_product_invoice', 'pinv');
+		
+		foreach ($po_trns as $po_trn) {
+			$performa_trn_data = array(
+				'invoice_id' => $performa_invoice_id,
+				'product_id' => $po_trn->product_id,
+				'product_size_id' => $po_trn->product_size_id,
+				'product_container' => $po_trn->product_container ?: 0,
+				'description_goods' => $po_trn->description_goods ?: '',
+				'pallet_status' => $po_trn->pallet_status ?: 1,
+				'weight_per_box' => $po_trn->weight_per_box ?: 0,
+				'pallet_weight' => $po_trn->pallet_weight ?: 0,
+				'big_pallet_weight' => $po_trn->big_pallet_weight ?: 0,
+				'small_pallet_weight' => $po_trn->small_pallet_weight ?: 0,
+				'boxes_per_pallet' => $po_trn->boxes_per_pallet ?: 0,
+				'box_per_big_pallet' => $po_trn->box_per_big_pallet ?: 0,
+				'box_per_small_pallet' => $po_trn->box_per_small_pallet ?: 0,
+				'sqm_per_box' => $po_trn->sqm_per_box ?: 0,
+				'feet_per_box' => $po_trn->feet_per_box ?: 0,
+				'pcs_per_box' => $po_trn->pcs_per_box ?: 0,
+				'total_no_of_pallet' => $po_trn->total_no_of_pallet ?: 0,
+				'total_no_of_boxes' => $po_trn->total_no_of_boxes ?: 0,
+				'total_no_of_sqm' => $po_trn->total_no_of_sqm ?: 0,
+				'total_product_amt' => 0, // Will calculate from packing
+				'total_pallet_weight' => $po_trn->total_pallet_weight ?: 0,
+				'total_net_weight' => $po_trn->total_net_weight ?: 0,
+				'total_gross_weight' => $po_trn->total_gross_weight ?: 0,
+				'container_half' => $po_trn->container_half ?: 0,
+				'rowspan_no' => $po_trn->rowspan_no ?: 0,
+				'container_order_by' => $po_trn->container_order_by ?: 0,
+				'seq' => 0,
+				'cdate' => date('Y-m-d H:i:s'),
+			);
+			
+			$performa_trn_id = $this->pinv->insert_productrecord($performa_trn_data);
+			if ($performa_trn_id) {
+				$trn_mapping[$po_trn->purchaseordertrn_id] = $performa_trn_id;
+			}
+		}
+		
+		// Copy packing data
+		$total_product_amt = 0;
+		$trn_totals = array(); // Track totals per transaction
+		
+		foreach ($po_trns as $po_trn) {
+			// Get packing data for this transaction
+			$this->load->model('Admin_purchaseorderpdf', 'po_pdf');
+			$packing_data = $this->po_pdf->getpurchaseproductrate($po_trn->purchaseordertrn_id);
+			
+			if (!empty($packing_data) && isset($trn_mapping[$po_trn->purchaseordertrn_id])) {
+				$performa_trn_id = $trn_mapping[$po_trn->purchaseordertrn_id];
+				$trn_total = 0;
+				
+				foreach ($packing_data as $pack) {
+					$product_amt = isset($pack->product_amt) ? (float) $pack->product_amt : 0;
+					if ($product_amt == 0 && isset($pack->product_rate) && isset($pack->no_of_sqm)) {
+						// Calculate if not set
+						$product_amt = (float) $pack->product_rate * (float) $pack->no_of_sqm;
+					}
+					
+					$performa_packing_data = array(
+						'performa_trn_id' => $performa_trn_id,
+						'design_id' => isset($pack->design_id) ? (int) $pack->design_id : 0,
+						'finish_id' => isset($pack->finish_id) ? (int) $pack->finish_id : 0,
+						'client_name' => isset($pack->client_name) ? $pack->client_name : '',
+						'barcode_no' => isset($pack->barcode_no) ? $pack->barcode_no : '',
+						'no_of_pallet' => isset($pack->no_of_pallet) ? (int) $pack->no_of_pallet : 0,
+						'no_of_big_pallet' => isset($pack->no_of_big_pallet) ? (int) $pack->no_of_big_pallet : 0,
+						'no_of_small_pallet' => isset($pack->no_of_small_pallet) ? (int) $pack->no_of_small_pallet : 0,
+						'no_of_boxes' => isset($pack->no_of_boxes) ? (int) $pack->no_of_boxes : 0,
+						'no_of_sqm' => isset($pack->no_of_sqm) ? (float) $pack->no_of_sqm : 0,
+						'product_rate' => isset($pack->product_rate) ? (float) $pack->product_rate : 0,
+						'per' => isset($pack->per) ? $pack->per : 'SQM',
+						'product_amt' => $product_amt,
+						'packing_net_weight' => isset($pack->packing_net_weight) ? (float) $pack->packing_net_weight : 0,
+						'packing_gross_weight' => isset($pack->packing_gross_weight) ? (float) $pack->packing_gross_weight : 0,
+						'pallet_type_id' => isset($pack->pallet_type_id) ? (int) $pack->pallet_type_id : 0,
+						'box_design_id' => isset($pack->box_design_id) ? (int) $pack->box_design_id : 0,
+					);
+					
+					$packing_id = $this->pinv->insert_packing_data($performa_packing_data);
+					$trn_total += $product_amt;
+					$total_product_amt += $product_amt;
+				}
+				
+				// Update transaction total
+				if ($trn_total > 0) {
+					$trn_totals[$performa_trn_id] = $trn_total;
+				}
+			}
+		}
+		
+		// Update total_product_amt for each transaction
+		foreach ($trn_totals as $trn_id => $total) {
+			$this->db->where('performa_trn_id', $trn_id);
+			$this->db->update('tbl_performa_trn', array('total_product_amt' => $total));
+		}
+		
+		// Update performa invoice grand total
+		$this->db->where('performa_invoice_id', $performa_invoice_id);
+		$this->db->update('tbl_performa_invoice', array('grand_total' => $total_product_amt));
+		
+		// Update purchase order with performa_invoice_id and set status to completed (step=2)
+		$this->load->model('admin_po', 'po_master');
+		$update_po = $this->po_master->po_update(array(
+			'performa_invoice_id' => $performa_invoice_id,
+			'step' => 2  // Set step to 2 (completed/success) when moved to PI
+		), $purchase_order_id);
+		
+		// Complete transaction
+		$this->db->trans_complete();
+		
+		if ($this->db->trans_status() === FALSE) {
+			redirect(base_url('purchaseorder_listing'));
+			return;
+		}
+		
+		// Redirect to Proforma Invoice listing page
+		redirect(base_url('invoice_listing'));
 	}
 }
