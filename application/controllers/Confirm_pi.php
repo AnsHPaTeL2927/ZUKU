@@ -40,11 +40,19 @@ class Confirm_pi extends CI_controller
 	 
 		$invoice_status = $this->input->get('invoice_status');
 		$cust_id = $this->input->get('cust_id');
-		$invoicedate = explode(" - ",$this->input->get('date'));
-		
-		$where = ' and performa_date BETWEEN "'.date('Y-m-d',strtotime($invoicedate[0])).'" and "'.date('Y-m-d',strtotime($invoicedate[1])).'"';
-		$_SESSION['cpi_s_date'] = $invoicedate[0];
-		$_SESSION['cpi_e_date'] = $invoicedate[1];
+		$dateVal = $this->input->get('date');
+		if (empty($dateVal) || strpos($dateVal, ' - ') === false) {
+			$year = date('n') > 3 ? date('d-m-Y', strtotime('1 April ' . date('Y'))) . ' - ' . date('d-m-Y', strtotime('31 March ' . (date('Y') + 1))) : date('d-m-Y', strtotime('1 April ' . (date('Y') - 1))) . ' - ' . date('d-m-Y', strtotime('31 March ' . date('Y')));
+			$dateVal = $year;
+		}
+		$invoicedate = explode(" - ", $dateVal);
+		$start = isset($invoicedate[0]) ? strtotime(trim($invoicedate[0])) : strtotime('-1 year');
+		$end = isset($invoicedate[1]) ? strtotime(trim($invoicedate[1])) : strtotime('today');
+		if ($start === false) { $start = strtotime('-1 year'); }
+		if ($end === false) { $end = strtotime('today'); }
+		$where = ' and performa_date BETWEEN "' . date('Y-m-d', $start) . '" and "' . date('Y-m-d', $end) . '"';
+		$_SESSION['cpi_s_date'] = isset($invoicedate[0]) ? trim($invoicedate[0]) : '';
+		$_SESSION['cpi_e_date'] = isset($invoicedate[1]) ? trim($invoicedate[1]) : '';
 		
 		// Get days filter
 $days_filter = $this->input->get('days_filter');
@@ -76,6 +84,7 @@ if (!empty($days_filter)) {
 		// {
 			// $where .= " and find_in_set(mst.consigne_id,(SELECT GROUP_CONCAT(customer_id) FROM `tbl_user_wise_customer` where user_id = ".$this->session->id." and status =0))";
 		// } 		
+		try {
 				$this->load->model('Pagging_model');//call module 
 				$aColumns = array('mst.performa_invoice_id', 'invoice_no','consign.c_companyname','grand_total','performa_date','time','mst.container_details','(SELECT GROUP_CONCAT(distinct  product.size_type_mm) from tbl_performa_trn as ptrn inner join tbl_product as product on product.product_id = ptrn.product_id where invoice_id = mst.performa_invoice_id) as size_ordered','mst.port_of_discharge','mst.status','mst.cdate','step','no_of_export','no_of_po','cur.currency_name','cur.currency_id','cur.currency_code','mst.consigne_id','addition_detail_status','confirm_date','confirm_status','user.user_name','payment.pi_advance_payment_id','payment.status as payment_status','(SELECT DATEDIFF(CURDATE(),confirm_date) FROM `tbl_performa_invoice` as daysinvoice where daysinvoice.performa_invoice_id = mst.performa_invoice_id ) as ago_days');
 				$isWhere = array("mst.status = 0 and confirm_status=1 and step=3 ".$where);
@@ -89,22 +98,26 @@ if (!empty($days_filter)) {
 				$hOrder = "mst.performa_invoice_id desc";
 				$sqlReturn = $this->Pagging_model->get_datatables($aColumns,$table,$hOrder,$isJOIN,$isWhere,$this->input->get());
 				$appData = array();
-				$no = ($this->input->get('iDisplayStart') + 1);
+				$no = (int) $this->input->get('iDisplayStart') + 1;
+				$rows = isset($sqlReturn['data']) && is_array($sqlReturn['data']) ? $sqlReturn['data'] : array();
 				 
-				foreach($sqlReturn['data'] as $row) 
+				foreach($rows as $row) 
 				{
 					
 						$set_container		= 	$this->Admin_pdf->product_set_data($row->performa_invoice_id,-2);
 						$setcontainer = 0;
 						$conarray = array();
-						for($i=0; $i<count($set_container);$i++)
+						if(!empty($set_container) && is_array($set_container))
 						{
-							 
-							if(!in_array($set_container[$i]->con_entry,$conarray))
+							for($i=0; $i<count($set_container);$i++)
 							{
-								$setcontainer += $set_container[$i]->container;
-								array_push($conarray,$set_container[$i]->con_entry);
-															
+								 
+								if(!in_array($set_container[$i]->con_entry,$conarray))
+								{
+									$setcontainer += $set_container[$i]->container;
+									array_push($conarray,$set_container[$i]->con_entry);
+																
+								}
 							}
 						}
 					
@@ -209,51 +222,60 @@ if (!empty($days_filter)) {
 						$row_data[] 	=  $row->c_companyname;
 						$locale='en-US'; //browser or user locale
 						$currency=$row->currency_code; 
-						$fmt = new NumberFormatter( $locale."@currency=$currency", NumberFormatter::CURRENCY );
-						$currency_symbol = $fmt->getSymbol(NumberFormatter::CURRENCY_SYMBOL);
+						$currency_symbol = '$';
+						if (!empty($currency) && class_exists('NumberFormatter')) {
+							try {
+								$fmt = new NumberFormatter( $locale."@currency=$currency", NumberFormatter::CURRENCY );
+								$currency_symbol = $fmt->getSymbol(NumberFormatter::CURRENCY_SYMBOL);
+							} catch (Exception $e) {
+								$currency_symbol = (!empty($currency) && $currency === 'USD') ? '$' : $currency . ' ';
+							}
+						}
 						$row_data[] 		= $currency_symbol.' '.number_format($row->grand_total,2,'.','');
 						$row_data[] 		= date('d/m/Y',strtotime($row->performa_date));
 						$row_data[] 		= $row->container_details;
 						$row_data[] = str_replace(",","<br>",$row->size_ordered);
 						$get_po_container 	= $this->Admin_pdf->get_producation_data($row->performa_invoice_id,0);
-						$row_data[] 		= $get_po_container['total_con'];
-						$pending_qty = floatval($row->container_details)-$get_po_container['total_con'];
+						$total_con = isset($get_po_container['total_con']) ? $get_po_container['total_con'] : 0;
+						$row_data[] 		= $total_con;
+						$pending_qty = floatval($row->container_details)-$total_con;
 						$row_data[] 		= ($pending_qty == 0)?'<i class="fa fa-check"></i>':number_format($pending_qty,2);
 						$color = '';
-					$m = (int)($row->ago_days / 30);
-				 	$d = (int)($row->ago_days - (($m * 30) + ($w)));
+					$ago_days = isset($row->ago_days) ? (int) $row->ago_days : 0;
+					$m = (int)($ago_days / 30);
+				 	$d = (int)($ago_days - ($m * 30));
 					$m = !empty($m)?$m.' Months ':'';
 					$label =  $m.$d.' days';
-				if( $row->ago_days > 7 &&  $row->ago_days < 14)
+				if( $ago_days > 7 &&  $ago_days < 14)
 				{
 					
 					$color = '<a class="tooltips btn" style="background:green;color:#fff" data-toggle="tooltip" data-title="'. $label.'" href="javascript:;">'. $label.' </a>';
 				 
 				}
-				else if($row->ago_days >= 14 && $row->ago_days < 21)
+				else if($ago_days >= 14 && $ago_days < 21)
 				{
 					$color = '<a class="tooltips btn" style="background:blue;color:#fff" data-toggle="tooltip" data-title="'. $label.'" href="javascript:;">'. $label.' </a>';
 				}
-				else if($row->ago_days  >= 21 &&$row->ago_days < 28)
+				else if($ago_days  >= 21 &&$ago_days < 28)
 				{
 					$color = '<a class="tooltips btn" style="background:purple;color:#fff" data-toggle="tooltip" data-title="'. $label.'" href="javascript:;">'. $label.' </a>';
 					 
 				}
-				else if($row->ago_days >= 28 &&$row->ago_days < 60)
+				else if($ago_days >= 28 &&$ago_days < 60)
 				{
 					
 					$color = '<a class="tooltips btn" style="background:orange;color:#fff" data-toggle="tooltip" data-title="'. $label.'" href="javascript:;">'. $label.' </a>';
 					 
 				}
-				else if($row->ago_days  >= 60 &&$row->ago_days  < 90)
+				else if($ago_days  >= 60 &&$ago_days  < 90)
 				{
 					$color = '<a class="tooltips btn" style="background:gray;color:#fff" data-toggle="tooltip" data-title="'. $label.'" href="javascript:;">'. $label.' </a>';
 				}
-				else if($row->ago_days  >= 90)
+				else if($ago_days  >= 90)
 				{
 					$color = '<a class="tooltips btn" style="background:red;color:#fff" data-toggle="tooltip" data-title="'. $label.'" href="javascript:;">'. $label.' </a>';
 				}
-				else if( $row->ago_days == 0)
+				else if( $ago_days == 0)
 				{
 					$color = '<a class="tooltips btn btn-defualt" style="color:#333" data-toggle="tooltip" data-title="Today" href="javascript:;">Today</a>';
 				}
@@ -278,18 +300,27 @@ if (!empty($days_filter)) {
 								 ';
 					 $appData[] = $row_data;
 					 $no++;
+					}
 			 	}
-				
-				}
 				$totalrecord = $this->Pagging_model->count_all($aColumns,$table,$hOrder,$isJOIN,$isWhere,'');
-				$numrecord=$sqlReturn['data'];
+				$numrecord = is_array($sqlReturn['data']) ? count($sqlReturn['data']) : 0;
 				$output = array(
 							"sEcho" 				=> intval($this->input->get('sEcho')),
-							"iTotalRecords" 		=>  $numrecord,
-							"iTotalDisplayRecords" 	=>	$totalrecord,
+							"iTotalRecords" 		=> (int) $totalrecord,
+							"iTotalDisplayRecords" 	=>	(int) $totalrecord,
 							"aaData" 				=> $appData
 					);
-				echo json_encode( $output );
+				$this->output->set_content_type('application/json')->set_output(json_encode($output));
+		} catch (Exception $e) {
+				log_message('error', 'Confirm_pi fetch_record: ' . $e->getMessage());
+				$err = array(
+					'sEcho' => (int) $this->input->get('sEcho'),
+					'iTotalRecords' => 0,
+					'iTotalDisplayRecords' => 0,
+					'aaData' => array()
+				);
+				$this->output->set_content_type('application/json')->set_status_header(200)->set_output(json_encode($err));
+		}
 	  } 
 	  public function confirmpi()
 	  {
