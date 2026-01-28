@@ -89,6 +89,7 @@ $this->view('lib/header');
 											<th>Purchase Order no</th>
 											<th>Date</th>
 											<th>Supplier Name</th>
+											<th>Consignee Name</th>
 											<th>Total Amount</th>
 											<th>Action</th>
 										</tr>
@@ -170,6 +171,9 @@ $this->view('lib/header');
 			],
 			"aoColumns": [{
 					"bSortable": false
+				},
+				{
+					"bSortable": true
 				},
 				{
 					"bSortable": true

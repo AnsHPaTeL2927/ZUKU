@@ -57,6 +57,19 @@ class Purchaseorder_listing extends CI_controller
 		$_SESSION['pur_s_date'] = $invoicedate[0];
 		$_SESSION['pur_e_date'] = $invoicedate[1];
 
+		// Get logged-in user's name
+		$logged_in_user_name = '';
+		if (!empty($this->session->id)) {
+			$user_query = $this->db->select('user_name')
+				->from('tbl_user')
+				->where('user_id', $this->session->id)
+				->where('status', 0)
+				->get();
+			if ($user_query->num_rows() > 0) {
+				$logged_in_user_name = $user_query->row()->user_name;
+			}
+		}
+		
 		$this->load->model('Pagging_model'); //call module 
 		$aColumns = array('purchase_order_id', 'purchase_order_no', 'seller_ref_no', 'supplier.supplier_name', 'supplier.company_name', 'purchase_order_date', 'mst.grand_total', 'mst.status', 'mst.cdate', 'mst.step', 'mst.production_mst_id', 'mst.performa_invoice_id');
 		$isWhere = array("mst.status = 0" . $where);
@@ -123,6 +136,7 @@ class Purchaseorder_listing extends CI_controller
 			}
 			$row_data[] = date('d/m/Y', strtotime($row->purchase_order_date));
 			$row_data[] = $row->company_name . ' - ' . $row->supplier_name;
+			$row_data[] = $logged_in_user_name; // Logged-in user's name
 
 			$row_data[] =  "$ " . number_format($row->grand_total, 2);
 
