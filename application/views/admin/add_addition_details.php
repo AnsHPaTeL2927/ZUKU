@@ -505,6 +505,48 @@
 <?php 
 	$this->view('lib/footer'); 
  ?>
+<script>
+// Global helper function to safely block page - works even if block_page is not defined
+function safeBlock() {
+	if(typeof block_page === 'function') {
+		block_page();
+	} else if(typeof $.blockUI === 'function') {
+		$.blockUI({ css: { 
+			border: 'none', 
+			padding: '0px', 
+			width: '17%',
+			left:'43%',
+			backgroundColor: '#000', 
+			'-webkit-border-radius': '10px', 
+			'-moz-border-radius': '10px', 
+			opacity: .5, 
+			color: '#fff', 
+			zIndex: '10000'
+		},
+		message	:  '<h3> Please wait...</h3>'	});
+	}
+}
+
+// Global helper function to safely unblock page - works even if unblock_page is not defined
+function safeUnblock(type, msg) {
+	if(typeof unblock_page === 'function') {
+		unblock_page(type, msg);
+	} else if(typeof $.unblockUI === 'function') {
+		// Fallback to direct jQuery unblockUI
+		if(type !== "" && msg !== "") {
+			if(typeof toastr !== 'undefined') {
+				toastr[type](msg);
+			}
+		}
+		setTimeout(function(){ $.unblockUI(); }, 500);
+	} else {
+		// Last resort: just show message if toastr is available
+		if(typeof toastr !== 'undefined' && type !== "" && msg !== "") {
+			toastr[type](msg);
+		}
+	}
+}
+</script>
  <div id="myFumigation" class="modal fade" role="dialog" >
     <div class="modal-dialog">
         <div class="modal-content">
@@ -580,7 +622,7 @@ $("#pallet_cap_add").submit(function(event) {
 	{
 		return false;
 	}
-	 block_page();
+	 safeBlock();
 	var postData= new FormData(this);
 	postData.append("mode","add");
 	 
@@ -599,7 +641,7 @@ $("#pallet_cap_add").submit(function(event) {
 				if(obj.res==1)
 			    {
 				 
-				   unblock_page("success","Sucessfully Inserted.");
+				   safeUnblock("success","Sucessfully Inserted.");
 					$("#pallet_cap_add").trigger('reset');
 					$("#mypallet").modal('hide');
 					$("#pallet_cap_id").append('<option value="'+obj.pallet_cap_id+'">'+obj.pallet_cap_name+'</option>');
@@ -607,11 +649,11 @@ $("#pallet_cap_add").submit(function(event) {
 				}
 				else if(obj.res==2)
 				{
-					unblock_page("info","Already Added.");
+					safeUnblock("info","Already Added.");
 				}
 				else
 				{
-					unblock_page("error","Something Wrong.") 
+					safeUnblock("error","Something Wrong.") 
 				}
             },
             error: function(jqXHR, textStatus, errorThrown) {
@@ -638,7 +680,7 @@ $("#fumigation_add").validate({
 	{
 		return false;
 	}
-	 block_page();
+	 safeBlock();
 	var postData= new FormData(this);
 	postData.append("mode","add");
 	 
@@ -656,7 +698,7 @@ $("#fumigation_add").validate({
 				$(".loader").hide();
 				if(obj.res==1)
 			    {
-				   unblock_page("success","Sucessfully Inserted.");
+				   safeUnblock("success","Sucessfully Inserted.");
 				  $("#fumigation_add").trigger('reset');
 				  $("#myFumigation").modal('hide');
 				  $("#fumigation_id").append('<option value="'+obj.fumigation_id+'">'+obj.fumigation_name+'</option>');
@@ -664,11 +706,11 @@ $("#fumigation_add").validate({
 				}
 				else if(obj.res==2)
 				{
-					unblock_page("info","Already Added.");
+					safeUnblock("info","Already Added.");
 				}
 				else
 				{
-					unblock_page("error","Something Wrong.") 
+					safeUnblock("error","Something Wrong.") 
 				}
             },
             error: function(jqXHR, textStatus, errorThrown) {
@@ -736,7 +778,7 @@ $("#addition_details_form").submit(function(event) {
 		return false;
 	}
 	 
-	block_page();
+	safeBlock();
 	var postData= new FormData(this);
 	 
 	$.ajax({
@@ -753,23 +795,26 @@ $("#addition_details_form").submit(function(event) {
 				if(obj.res==1)
 			   {
 				   
-					unblock_page("success","Sucessfully Inserted.");
+					safeUnblock("success","Sucessfully Inserted.");
 					setTimeout(function(){ window.location=root+"performa_invoice_pdf/index/<?=$invoicedata->performa_invoice_id?>"; },100);
 			   }
 			   else if(obj.res==2)
 			   {
 				   
-					unblock_page("success","Sucessfully Updated.");
+					safeUnblock("success","Sucessfully Updated.");
 					setTimeout(function(){ window.location=root+"performa_invoice_pdf/index/<?=$invoicedata->performa_invoice_id?>"; },100);
 			   }
 			   else
 			   {
-				    unblock_page("error","Something Wrong.") 
+				    safeUnblock("error","Something Wrong.") 
 				   
 			   }
             },
             error: function(jqXHR, textStatus, errorThrown) {
-                console.log(errorThrown);
+                console.log('AJAX Error:', errorThrown);
+                console.log('Response Text:', jqXHR.responseText);
+                // Unblock page even on error
+                safeUnblock("error","An error occurred. Please try again.");
             }
 	});
 });

@@ -54,7 +54,13 @@ class Invoice extends CI_controller
 	function manage()
 	{
 		$check_box_design = $this->invoice->check_terms_update($this->input->post('payment_terms'));
-		$check_pi_no = $this->invoice->check_performa_no($this->input->post('invoice_no'));
+		$mode = strtolower($this->input->post('mode'));
+		$invoice_no = $this->input->post('invoice_no');
+		$invoice_id = $this->input->post('performa_invoice_id');
+		
+		// Check for duplicate invoice number - exclude current invoice ID in edit mode
+		$check_pi_no = $this->invoice->check_performa_no($invoice_no, ($mode == 'edit' ? $invoice_id : null));
+		
 		//$check_consigne = $this->invoice->check_consigne_id($this->input->post('consign_detail'));
 		
 			if(empty($check_box_design))
@@ -77,7 +83,7 @@ class Invoice extends CI_controller
 					'consigne_id' 				=> $this->input->post('c_name'),
 					'consign_detail' 			=> nl2br($this->input->post('consign_detail')),
 					'invoice_currency_id'		=> ($this->input->post('invoice_currency_id')),
-					'invoice_no' 				=> $this->input->post('invoice_no'),
+					'invoice_no' 				=> $invoice_no,
 					'country_origin_goods' 		=> $this->input->post('country_origin_goods'),
 					'port_of_discharge' 		=> $this->input->post('port_of_discharge'),
 					'final_destination' 		=> $this->input->post('final_destination'),
@@ -116,7 +122,7 @@ class Invoice extends CI_controller
 					'status' 					=> 0
 					);
 					$row['res'] = 0;
-					if(strtolower($this->input->post('mode'))=="add")
+					if($mode=="add")
 					{				
 						$data['step']  = 1;
 						$data['confirm_status']  = 0;
@@ -148,15 +154,34 @@ class Invoice extends CI_controller
 					// }
 						
 					}
-					else if(strtolower($this->input->post('mode'))=="edit")
+					else if($mode=="edit")
 					{
-						$data['mdate'] = date('Y-m-d H:i:s');
-						$id = $this->input->post('performa_invoice_id');
-						$rs = $this->invoice->updateperformainvoice($data,$id);
-						if($rs)
-						{	
-							$row['res'] = 3;
-							$row['invoiceid'] = $id;
+						// Check for duplicate invoice number in edit mode (only if changed)
+						if(!empty($check_pi_no))
+						{
+							$row['res'] = 4;
+						}
+						else
+						{
+							// Preserve step field if it exists
+							$step = $this->input->post('step');
+							if(!empty($step))
+							{
+								$data['step'] = $step;
+							}
+							
+							$data['mdate'] = date('Y-m-d H:i:s');
+							$id = $invoice_id;
+							$rs = $this->invoice->updateperformainvoice($data,$id);
+							if($rs)
+							{	
+								$row['res'] = 3;
+								$row['invoiceid'] = $id;
+							}
+							else
+							{
+								$row['res'] = 0;
+							}
 						}
 		
 					}
@@ -245,13 +270,32 @@ class Invoice extends CI_controller
 					}
 					else if(strtolower($this->input->post('mode'))=="edit")
 					{
-						$data['mdate'] = date('Y-m-d H:i:s');
-						$id = $this->input->post('performa_invoice_id');
-						$rs = $this->invoice->updateperformainvoice($data,$id);
-						if($rs)
-						{	
-							$row['res'] = 3;
-							$row['invoiceid'] = $id;
+						// Check for duplicate invoice number in edit mode (only if changed)
+						if(!empty($check_pi_no))
+						{
+							$row['res'] = 4;
+						}
+						else
+						{
+							// Preserve step field if it exists
+							$step = $this->input->post('step');
+							if(!empty($step))
+							{
+								$data['step'] = $step;
+							}
+							
+							$data['mdate'] = date('Y-m-d H:i:s');
+							$id = $this->input->post('performa_invoice_id');
+							$rs = $this->invoice->updateperformainvoice($data,$id);
+							if($rs)
+							{	
+								$row['res'] = 3;
+								$row['invoiceid'] = $id;
+							}
+							else
+							{
+								$row['res'] = 0;
+							}
 						}
 		
 					}
@@ -263,9 +307,24 @@ class Invoice extends CI_controller
  	//update 
  	public function form_edit($id)
 	{
+		// Validate invoice ID
+		if(empty($id))
+		{
+			redirect(base_url().'invoice_listing');
+			return;
+		}
+		
 		$exporter=$this->invoice->select_exporter();
 		$consign=$this->invoice->select_consigner();
-		$data = $this->invoice->getinvoicedata($id);	
+		$data = $this->invoice->getinvoicedata($id);
+		
+		// Validate invoice data exists
+		if(empty($data))
+		{
+			redirect(base_url().'invoice_listing');
+			return;
+		}
+		
 		$this->load->model('admin_company_detail');	
 		$this->load->model('admin_country_detail');	
 		$this->load->model('admin_currency_list');	
@@ -273,6 +332,13 @@ class Invoice extends CI_controller
 		$this->load->model('admin_bank_detail','bd');	
 		$consign_other=$this->invoice->other_consigner($data->consigne_id);
 		$all_bank		 	= $this->bd->b_select();
+		
+		// Get bank detail - handle case where bank_id might be empty
+		$bank_detail_data = null;
+		if(!empty($data->bank_id))
+		{
+			$bank_detail_data = $this->bd->b_form_edit($data->bank_id);
+		}
 		
 		$v = array(
 			'consign_detail'=>$consign,
@@ -287,7 +353,7 @@ class Invoice extends CI_controller
 			'termsdata'	=>$this->invoice->gettermsdata(),
 			'notifydata'	=>$this->invoice->customerallconsignerdetail($data->consigne_id),
 			'all_bank'		  => $this->bd->b_select(),
-			'bank_detail'		=>$this->bd->b_form_edit($data->bank_id),
+			'bank_detail'		=>$bank_detail_data,
 		);
 
 		$this->load->view('admin/invoice',$v);		

@@ -126,14 +126,15 @@ else
 	$terms_id 						= $invoicedata->terms_id;
 	$remarks 						= $invoicedata->remarks;
 	$bank_id 						= $invoicedata->bank_id;
-	$bank_name 						= $invoicedata->bank_name;
-	$bank_address 					= $invoicedata->bank_address;
-	$bank_account_name				= $invoicedata->account_name;
-	$bank_account_no				= $invoicedata->account_no;
-	$bank_ifsc_code					= $invoicedata->ifsc_code;
-	$bank_swift_code				= $invoicedata->swift_code;
-	$bank_ad_code					= $invoicedata->bank_ad_code;
-	$iban_number					= $invoicedata->iban_number;
+	// Get bank details - handle case where bank_detail might be null
+	$bank_name 						= (!empty($bank_detail) && isset($bank_detail->bank_name)) ? $bank_detail->bank_name : (isset($invoicedata->bank_name) ? $invoicedata->bank_name : '');
+	$bank_address 					= (!empty($bank_detail) && isset($bank_detail->bank_address)) ? $bank_detail->bank_address : (isset($invoicedata->bank_address) ? $invoicedata->bank_address : '');
+	$bank_account_name				= (!empty($bank_detail) && isset($bank_detail->account_name)) ? $bank_detail->account_name : (isset($invoicedata->account_name) ? $invoicedata->account_name : '');
+	$bank_account_no				= (!empty($bank_detail) && isset($bank_detail->account_no)) ? $bank_detail->account_no : (isset($invoicedata->account_no) ? $invoicedata->account_no : '');
+	$bank_ifsc_code					= (!empty($bank_detail) && isset($bank_detail->ifsc_code)) ? $bank_detail->ifsc_code : (isset($invoicedata->ifsc_code) ? $invoicedata->ifsc_code : '');
+	$bank_swift_code				= (!empty($bank_detail) && isset($bank_detail->swift_code)) ? $bank_detail->swift_code : (isset($invoicedata->swift_code) ? $invoicedata->swift_code : '');
+	$bank_ad_code					= (!empty($bank_detail) && isset($bank_detail->bank_ad_code)) ? $bank_detail->bank_ad_code : (isset($invoicedata->bank_ad_code) ? $invoicedata->bank_ad_code : '');
+	$iban_number					= (!empty($bank_detail) && isset($bank_detail->iban_number)) ? $bank_detail->iban_number : (isset($invoicedata->iban_number) ? $invoicedata->iban_number : '');
 	$exporter_email 				= explode(",",$exporter_detail->s_email);
 	$exporter_mobile 				= explode(",",$exporter_detail->s_mobile);
   	$exporteremail 					= $invoicedata->e_email;
@@ -367,12 +368,12 @@ else
 										 Port Of Discharge
 									</td>
 									 <td colspan="3">
-											<input type="text" placeholder="Port Of Discharge" style="font-weight:bold;" id="port_of_discharge" required="" class="form-control" name="port_of_discharge" value="<?=$invoicedata->port_of_discharge?>" title="Enter Port Of Discharge">
+											<input type="text" placeholder="Port Of Discharge" style="font-weight:bold;" id="port_of_discharge" required="" class="form-control" name="port_of_discharge" value="<?=($mode=="Edit" && isset($invoicedata)) ? $invoicedata->port_of_discharge : ''?>" title="Enter Port Of Discharge">
 									</td>
 								</tr>
 								 <tr>
 									<td colspan="6">
-											<textarea class="form-control" rows="4" name="consign_detail" id="consign_detail"  required title="Enter Consign Detail" placeholder="Consign Detail"><?=strip_tags($invoicedata->consign_detail)?></textarea>
+											<textarea class="form-control" rows="4" name="consign_detail" id="consign_detail"  required title="Enter Consign Detail" placeholder="Consign Detail"><?=($mode=="Edit" && isset($invoicedata)) ? strip_tags($invoicedata->consign_detail) : ''?></textarea>
 									</td>
 								<td >Buyer If Other Then Consignee [Notify]</td>
 								<td colspan="3">
@@ -429,10 +430,20 @@ else
 											<input type="text" placeholder="Vessel/Flight No" style="font-weight:bold;" id="partial_shipment"  class="form-control" name="partial_shipment" value="<?=$export_partial_shipment?>" >
 									</td>
 									<td colspan="3">
-											<input type="text" placeholder="Final Destination" style="font-weight:bold;" id="final_destination" required="" class="form-control" name="final_destination" value="<?=$invoicedata->final_destination?>" title="Enter Final Destination">
+											<input type="text" placeholder="Final Destination" style="font-weight:bold;" id="final_destination" required="" class="form-control" name="final_destination" value="<?=($mode=="Edit" && isset($invoicedata)) ? $invoicedata->final_destination : ''?>" title="Enter Final Destination">
 									</td>
 									<td colspan=""> 
-											<input type="text" placeholder="Variation in Qantity" style="font-weight:bold;" id="variation_in_quantity"  class="form-control" name="variation_in_quantity" value="<?=$exporter_variation_in_quantity?>" >
+											<input type="text" placeholder="Variation in Qantity" style="font-weight:bold;" id="variation_in_quantity"  class="form-control" name="variation_in_quantity" value="<?php
+											$variation_value = '';
+											if($mode=="Edit" && isset($invoicedata)) {
+												$variation_value = !empty($invoicedata->variation_in_quantity) ? $invoicedata->variation_in_quantity : '30 Days after confirmation order';
+											} elseif($mode=="Add") {
+												$variation_value = !empty($exporter_variation_in_quantity) ? $exporter_variation_in_quantity : '30 Days after confirmation order';
+											} else {
+												$variation_value = '30 Days after confirmation order';
+											}
+											echo htmlspecialchars($variation_value);
+											?>" >
 									</td>
 									<td colspan="3">
 											<input type="text" placeholder="Delivery Period" id="delivery_period" style="font-weight:bold;"  class="form-control" name="delivery_period" value="<?=$export_delivery_period?>" >
@@ -450,13 +461,13 @@ else
 							</tr>
 								<tr>
 									<td colspan="3"> 
-										<input type="text"  id="container_twenty"  name="container_twenty"  class="form-control"  value="<?=$invoicedata->container_twenty?>"  onkeyup="cal_total()" onblur="cal_total()" >
+										<input type="text"  id="container_twenty"  name="container_twenty"  class="form-control"  value="<?=($mode=="Edit" && isset($invoicedata)) ? $invoicedata->container_twenty : ''?>"  onkeyup="cal_total()" onblur="cal_total()" >
 										
 									</td>
 									 
 									<td colspan="2">
-										<input type="text"  id="container_forty" name="container_forty"  class="form-control"  value="<?=$invoicedata->container_forty?>" onkeyup="cal_total()" onblur="cal_total()" >
-										<input type="hidden"  id="container_details"   name="container_details"  class="form-control"  value="<?=$invoicedata->container_details?>"  >
+										<input type="text"  id="container_forty" name="container_forty"  class="form-control"  value="<?=($mode=="Edit" && isset($invoicedata)) ? $invoicedata->container_forty : ''?>" onkeyup="cal_total()" onblur="cal_total()" >
+										<input type="hidden"  id="container_details"   name="container_details"  class="form-control"  value="<?=($mode=="Edit" && isset($invoicedata)) ? $invoicedata->container_details : '0'?>"  >
 									</td>
 									 
 									<td>
@@ -504,14 +515,26 @@ else
 										<select name="bank_id" id="bank_id" class="form-control" onchange="load_bank_detail(this.value)" required title="Enter Bank">
 													<option>Select Bank</option>
 													<?php 
-													 for($i=0; $i<count($all_bank);$i++)
+													$bank_selected = false;
+													for($i=0; $i<count($all_bank);$i++)
 													{
 														$sel ='';
-														 if($all_bank[$i]->id==$bank_id)
-														 {
-															 $sel = 'selected="selected"';
-														 }
-														 
+														if($mode=="Edit" && isset($invoicedata) && $all_bank[$i]->id==$bank_id)
+														{
+															$sel = 'selected="selected"';
+															$bank_selected = true;
+														}
+														elseif($mode=="Add" && $all_bank[$i]->id==$bank_id)
+														{
+															$sel = 'selected="selected"';
+															$bank_selected = true;
+														}
+														elseif(!$bank_selected && $i==0 && $mode=="Add")
+														{
+															// Select first bank if none is explicitly selected in Add mode
+															$sel = 'selected="selected"';
+															$bank_selected = true;
+														}
 													?>
 														<option <?=$sel?> value="<?php echo $all_bank[$i]->id; ?>" ><?php echo $all_bank[$i]->bank_name; ?></option>
 													<?php
@@ -530,7 +553,7 @@ else
 											Next
 									</button>
 									<?php 
-									if($invoicedata->step == 3)
+									if($mode=="Edit" && isset($invoicedata) && $invoicedata->step == 3)
 									{
 									?>
 									<button type="submit" name="submit"  value="save" class="btn btn-success">
@@ -553,7 +576,10 @@ else
 							<input type="hidden" name="swift_code" id="swift_code" value="<?=$bank_swift_code?>"/>			
 							<input type="hidden" name="bank_ad_code" id="bank_ad_code" value="<?=$bank_ad_code?>"/>			
 							<input type="hidden" name="iban_number" id="iban_number" value="<?=$iban_number?>"/>			
-							<input type="hidden" name="performa_invoice_id" id="performa_invoice_id" value="<?=$invoicedata->performa_invoice_id?>"/>			
+							<input type="hidden" name="performa_invoice_id" id="performa_invoice_id" value="<?=($mode=="Edit" && isset($invoicedata)) ? $invoicedata->performa_invoice_id : ''?>"/>
+							<?php if($mode=="Edit" && isset($invoicedata)): ?>
+							<input type="hidden" name="step" id="step" value="<?=$invoicedata->step?>"/>
+							<?php endif; ?>			
 							<input type="hidden" name="c_terms_of_delivery" id="c_terms_of_delivery" value="<?=$exporter_detail->terms_of_delivery?>"/>			
 					 </form>
 					    
@@ -811,67 +837,133 @@ $(document).ready(function() {
 	});
 });
 
-$("#invoice_form").submit(function(event) {
-	event.preventDefault();
-	 
-	if(!$("#invoice_form").valid())
-	{
-		return false;
+// Global helper function to safely unblock page - works even if unblock_page is not defined
+function safeUnblock(type, msg) {
+	if(typeof unblock_page === 'function') {
+		unblock_page(type, msg);
+	} else if(typeof $.unblockUI === 'function') {
+		// Fallback to direct jQuery unblockUI
+		if(type !== "" && msg !== "") {
+			if(typeof toastr !== 'undefined') {
+				toastr[type](msg);
+			}
+		}
+		setTimeout(function(){ $.unblockUI(); }, 500);
+	} else {
+		// Last resort: just show message if toastr is available
+		if(typeof toastr !== 'undefined' && type !== "" && msg !== "") {
+			toastr[type](msg);
+		}
 	}
-	else if($("#container_details").val() == 0 || $("#container_details").val() =="")
-	{
-		toastr['error']('Please add container')
-		return false;
-	}
-	block_page();
-	var postData= new FormData(this);
-	 
-	$.ajax({
-            type: "post",
-            url: 	root+'invoice/manage',
-            data: postData,
+}
+
+$(document).ready(function() {
+	// Track which submit button was clicked - use mousedown to capture before form submit
+	var clickedButton = null;
+	$('button[type="submit"][name="submit"]').on('mousedown', function(e) {
+		clickedButton = $(this).val();
+		console.log('Button clicked:', clickedButton);
+	});
+	
+	// Also track on click as backup
+	$('button[type="submit"][name="submit"]').on('click', function(e) {
+		clickedButton = $(this).val();
+		console.log('Button clicked (click event):', clickedButton);
+	});
+	
+	$("#invoice_form").submit(function(event) {
+		event.preventDefault();
+		
+		cal_total(); // Ensure container total is calculated
+		
+		// Get button value from clicked button or active element
+		var submitButtonValue = clickedButton;
+		if(!submitButtonValue) {
+			// Try to get from active element
+			var activeElement = document.activeElement;
+			if(activeElement && activeElement.tagName === 'BUTTON' && activeElement.type === 'submit') {
+				submitButtonValue = $(activeElement).val();
+			}
+		}
+		// Default to 'save' if still not found
+		if(!submitButtonValue) {
+			submitButtonValue = 'save';
+		}
+		
+		console.log('Form submitting with button value:', submitButtonValue);
+		
+		if(!$("#invoice_form").valid())
+		{
+			return false;
+		}
+		else if($("#container_details").val() == 0 || $("#container_details").val() =="")
+		{
+			toastr['error']('Please add container')
+			return false;
+		}
+		
+		if(typeof block_page === 'function') {
+			block_page();
+		}
+		
+		var postData= new FormData(this);
+		
+		// Store button value in FormData for reference
+		postData.append('submit_button', submitButtonValue);
+		
+		$.ajax({
+			type: "post",
+			url: 	root+'invoice/manage',
+			data: postData,
 			processData: false,
 			contentType: false,
 			cache: false,
-            success: function(responseData) {
-               console.log(responseData);
-			    var obj= JSON.parse(responseData);
-			   if(obj.res==1)
-			   {
-				   //$("#invoice_form").trigger('reset');
-				    unblock_page("success","Sucessfully Inserted.");
+			success: function(responseData) {
+				console.log('Response:', responseData);
+				var obj= JSON.parse(responseData);
+				
+				if(obj.res==1)
+				{
+					safeUnblock("success","Sucessfully Inserted.");
 					setTimeout(function(){ window.location=root+'product/index/'+obj.invoiceid; },1500);
 				}
 				else if(obj.res==3)
-			   {
-				   $("#invoice_form").trigger('reset');
-				    unblock_page("success","Sucessfully Updated.");
-					var val = $(document.activeElement).val();
-					 
+				{
+					safeUnblock("success","Sucessfully Updated.");
+					
+					// Use the stored button value
+					var val = submitButtonValue;
+					console.log('Redirecting with button value:', val);
+					
 					if(val == "next")
 					{
 						setTimeout(function(){ window.location=root+'product/index/'+obj.invoiceid; },1500);
-				 	}
+					}
 					else
 					{
 						setTimeout(function(){ window.location=root+'performa_invoice_pdf/index/'+obj.invoiceid; },1500);
 					}
-					 
+					
+					// Reset button tracker
+					clickedButton = null;
 				}
 				else if(obj.res==4)
-			   {
-				   $("#invoice_no").focus();
-				     unblock_page("error","Performa Invoice Number Same.");
-			   }
-			   else
-			   {
-				    unblock_page("error","Something Wrong.") 
-				   
-			   }
-            },
-            error: function(jqXHR, textStatus, errorThrown) {
-                console.log(errorThrown);
-            }
+				{
+					$("#invoice_no").focus();
+					safeUnblock("error","Performa Invoice Number Same.");
+				}
+				else
+				{
+					console.log('Unexpected response:', obj);
+					safeUnblock("error","Something Wrong.");
+				}
+			},
+			error: function(jqXHR, textStatus, errorThrown) {
+				console.log('AJAX Error:', errorThrown);
+				console.log('Response Text:', jqXHR.responseText);
+				safeUnblock("error","An error occurred. Please try again.");
+			}
+		});
 	});
 });
 
@@ -912,7 +1004,7 @@ $("#consigner_form").submit(function(event) {
 			   {
 				   $("#consigner_form").trigger('reset');
 				    $('#myModal').modal("hide")
-					unblock_page("success","Sucessfully Inserted.");
+					safeUnblock("success","Sucessfully Inserted.");
 				    $("#c_name").append("<option value='"+obj.id+"' selected>"+obj.c_companyname+"</option>");
 					$("#c_name").val(obj.id);
 					$("#c_name").trigger("change")
@@ -920,12 +1012,12 @@ $("#consigner_form").submit(function(event) {
 			   
 			   else if(obj.res==2)
 				{
-					unblock_page("error","Company Name already exist");
+					safeUnblock("error","Company Name already exist");
 				
 				} 
 				else
 			   {
-				    unblock_page("error","Something Wrong.") 
+				    safeUnblock("error","Something Wrong.") 
 				   
 			   }
             },
@@ -960,14 +1052,14 @@ $("#country_add").submit(function(event) {
 			   {
 				   $("#consigner_form").trigger('reset');
 				    $('#countryadd').modal("hide")
-					unblock_page("success","Sucessfully Inserted.");
+					safeUnblock("success","Sucessfully Inserted.");
 				    $("#country_id").append("<option value='"+obj.id+"' selected>"+obj.cname+"</option>");
 					$("#country_id").val(obj.id);
 				 
 			   }
 			   else
 			   {
-				    unblock_page("error","Something Wrong.") 
+				    safeUnblock("error","Something Wrong.") 
 				   
 			   }
             },
@@ -1071,7 +1163,7 @@ function  load_consigner(cidval){
 				 $("#consign_list").show();
                    $("#notify_id").html(cdata);
 			 }
-			  unblock_page('','');
+			  safeUnblock('','');
           }
         })
 
@@ -1097,6 +1189,7 @@ function load_bank_detail(bankid)
             $('#ifsc_code').val(obj1.ifsc_code);
             $('#swift_code').val(obj1.swift_code);
             $('#bank_ad_code').val(obj1.bank_ad_code);
+            $('#iban_number').val(obj1.iban_number);
  
          }
       })
@@ -1146,13 +1239,13 @@ $("#currency_add").submit(function(event) {
 			   {
 				  $("#currency_add").trigger('reset');
 				    $('#currencyadd').modal("hide")
-					unblock_page("success","Sucessfully Inserted.");
+					safeUnblock("success","Sucessfully Inserted.");
 				    $("#currency_id").append("<option value='"+obj.id+"' selected>"+obj.currency+"</option>");
 					$("#currency_id").select2("val",obj.id);
 				}
 			   else
 			   {
-				    unblock_page("error","Something Wrong.") 
+				    safeUnblock("error","Something Wrong.") 
 				   
 			   }
             },
@@ -1166,9 +1259,39 @@ $("#currency_add").submit(function(event) {
 </script>
 <?php 
  
-if($mode=="Edit" && empty($invoicedata->consign_detail))
+if($mode=="Edit" && isset($invoicedata) && empty($invoicedata->consign_detail))
 {
-	echo "<script>load_consigner(".$invoicedata->consigne_id.")</script>";
-	echo "<script>selectotherconsigner(".$invoicedata->notify_id.")</script>";
+	echo "<script>";
+	echo "if(typeof load_consigner === 'function') { load_consigner(".$invoicedata->consigne_id."); }";
+	echo "</script>";
+	if(!empty($invoicedata->notify_id)) {
+		echo "<script>";
+		echo "if(typeof selectotherconsigner === 'function') { selectotherconsigner(".$invoicedata->notify_id."); }";
+		echo "</script>";
+	}
+}
+
+// Ensure bank details are loaded on page load if bank is selected
+if($mode=="Edit" && isset($invoicedata) && !empty($invoicedata->bank_id))
+{
+	echo "<script>";
+	echo "$(document).ready(function() {";
+	echo "	var bankId = $('#bank_id').val();";
+	echo "	if(bankId != '' && bankId != undefined && bankId != 'Select Bank') {";
+	echo "		if(typeof load_bank_detail === 'function') { load_bank_detail(bankId); }";
+	echo "	}";
+	echo "});";
+	echo "</script>";
+}
+elseif($mode=="Add" && !empty($bank_id))
+{
+	echo "<script>";
+	echo "$(document).ready(function() {";
+	echo "	var bankId = $('#bank_id').val();";
+	echo "	if(bankId != '' && bankId != undefined && bankId != 'Select Bank') {";
+	echo "		if(typeof load_bank_detail === 'function') { load_bank_detail(bankId); }";
+	echo "	}";
+	echo "});";
+	echo "</script>";
 }
 ?>

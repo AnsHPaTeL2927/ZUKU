@@ -103,10 +103,14 @@ class Admin_invoice extends CI_model
 		$q = $this->db->get('tbl_performa_invoice');
 		return $q->row();
 	}
-	public function check_performa_no($invoice_no)
+	public function check_performa_no($invoice_no, $exclude_id = null)
 	{
 		$this->db->where('status',0);
 		$this->db->where('invoice_no',$invoice_no);
+		// Exclude current invoice ID when checking for duplicates in edit mode
+		if(!empty($exclude_id)) {
+			$this->db->where('performa_invoice_id !=', $exclude_id);
+		}
 		$q = $this->db->get('tbl_performa_invoice');
 		return $q->row();
 	}

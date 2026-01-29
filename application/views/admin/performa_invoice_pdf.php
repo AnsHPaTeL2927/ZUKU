@@ -9,8 +9,136 @@ $payment_terms =  ($invoicedata->payment_terms);
 $time=(!empty((int)$invoicedata->time))?date('h:i A',strtotime($invoicedata->time)):"";
 $locale='en-US'; //browser or user locale
 $currency=$invoicedata->currency_code; 
-$fmt = new NumberFormatter( $locale."@currency=$currency", NumberFormatter::CURRENCY );
-$currency_symbol = $fmt->getSymbol(NumberFormatter::CURRENCY_SYMBOL);
+
+// Safe currency symbol function - works even if intl extension is not available
+function getCurrencySymbol($currency_code) {
+	// Common currency symbols mapping
+	$currency_symbols = array(
+		'USD' => '$',
+		'EUR' => '€',
+		'GBP' => '£',
+		'JPY' => '¥',
+		'INR' => '₹',
+		'AUD' => 'A$',
+		'CAD' => 'C$',
+		'CHF' => 'CHF',
+		'CNY' => '¥',
+		'HKD' => 'HK$',
+		'SGD' => 'S$',
+		'NZD' => 'NZ$',
+		'SEK' => 'kr',
+		'NOK' => 'kr',
+		'DKK' => 'kr',
+		'PLN' => 'zł',
+		'MXN' => '$',
+		'BRL' => 'R$',
+		'ZAR' => 'R',
+		'KRW' => '₩',
+		'TRY' => '₺',
+		'RUB' => '₽',
+		'THB' => '฿',
+		'MYR' => 'RM',
+		'PHP' => '₱',
+		'IDR' => 'Rp',
+		'VND' => '₫',
+		'AED' => 'د.إ',
+		'SAR' => 'ر.س',
+		'QAR' => 'ر.ق',
+		'KWD' => 'د.ك',
+		'BHD' => 'د.ب',
+		'OMR' => 'ر.ع.',
+		'JOD' => 'د.ا',
+		'LBP' => 'ل.ل',
+		'EGP' => 'E£',
+		'ILS' => '₪',
+		'PKR' => '₨',
+		'BDT' => '৳',
+		'LKR' => 'Rs',
+		'NPR' => 'Rs',
+		'MMK' => 'K',
+		'KHR' => '៛',
+		'LAK' => '₭',
+		'BND' => 'B$',
+		'CLP' => '$',
+		'COP' => '$',
+		'PEN' => 'S/',
+		'ARS' => '$',
+		'UYU' => '$U',
+		'PYG' => 'Gs',
+		'BOB' => 'Bs.',
+		'VEF' => 'Bs.',
+		'VES' => 'Bs.',
+		'CRC' => '₡',
+		'GTQ' => 'Q',
+		'HNL' => 'L',
+		'NIO' => 'C$',
+		'PAB' => 'B/.',
+		'DOP' => 'RD$',
+		'TTD' => 'TT$',
+		'BBD' => 'Bds$',
+		'JMD' => 'J$',
+		'BZD' => 'BZ$',
+		'XCD' => '$',
+		'BMD' => 'BD$',
+		'BSD' => 'B$',
+		'KYD' => 'CI$',
+		'CUP' => '₱',
+		'HTG' => 'G',
+		'CZK' => 'Kč',
+		'HUF' => 'Ft',
+		'RON' => 'lei',
+		'BGN' => 'лв',
+		'HRK' => 'kn',
+		'RSD' => 'дин',
+		'BAM' => 'КМ',
+		'MKD' => 'ден',
+		'ALL' => 'L',
+		'ISK' => 'kr',
+		'UAH' => '₴',
+		'BYN' => 'Br',
+		'MDL' => 'L',
+		'GEL' => '₾',
+		'AMD' => '֏',
+		'AZN' => '₼',
+		'KZT' => '₸',
+		'KGS' => 'с',
+		'TJS' => 'ЅМ',
+		'TMT' => 'm',
+		'UZS' => 'so\'m',
+		'MNT' => '₮',
+		'AFN' => '؋',
+		'IRR' => '﷼',
+		'IQD' => 'ع.د',
+		'SYP' => '£',
+		'YER' => '﷼',
+		'MOP' => 'MOP$',
+		'TWD' => 'NT$'
+	);
+	
+	$currency_code = strtoupper($currency_code);
+	
+	// Try to use NumberFormatter if intl extension is available
+	if(class_exists('NumberFormatter')) {
+		try {
+			$locale = 'en-US';
+			$fmt = new NumberFormatter($locale."@currency=$currency_code", NumberFormatter::CURRENCY);
+			$symbol = $fmt->getSymbol(NumberFormatter::CURRENCY_SYMBOL);
+			return $symbol;
+		} catch(Exception $e) {
+			// Fall through to mapping
+		}
+	}
+	
+	// Fallback to currency symbol mapping
+	if(isset($currency_symbols[$currency_code])) {
+		return $currency_symbols[$currency_code];
+	}
+	
+	// Default: return currency code if symbol not found
+	return $currency_code;
+}
+
+$currency_symbol = getCurrencySymbol($currency);
 $currency_symbol = ($invoicedata->currency_code == "INR")?'<img src="'.base_url().'adminast/assets/images/ruppe_sysbol.jpg"/>':$currency_symbol;
 
 $certification_charge = ($invoicedata->certification_charge>0)? $currency_symbol.' '.$invoicedata->certification_charge:'';

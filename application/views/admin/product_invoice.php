@@ -1084,6 +1084,26 @@ $this->view('lib/addmodeltype');
 ?>
 <script>
 
+// Global helper function to safely unblock page - works even if unblock_page is not defined
+function safeUnblock(type, msg) {
+	if(typeof unblock_page === 'function') {
+		safeUnblock(type, msg);
+	} else if(typeof $.unblockUI === 'function') {
+		// Fallback to direct jQuery unblockUI
+		if(type !== "" && msg !== "") {
+			if(typeof toastr !== 'undefined') {
+				toastr[type](msg);
+			}
+		}
+		setTimeout(function(){ $.unblockUI(); }, 500);
+	} else {
+		// Last resort: just show message if toastr is available
+		if(typeof toastr !== 'undefined' && type !== "" && msg !== "") {
+			toastr[type](msg);
+		}
+	}
+}
+
 // function do_same_in_all(val)
 // {
 	// $(".same_cls"+val).show();
@@ -1134,14 +1154,14 @@ $("#other_product_form").submit(function(event) {
 			  if(obj.res==1)
 			   {
 				   $("#wallproduct_form").trigger('reset');
-				    unblock_page("success","Sucessfully Inserted.");
+				    safeUnblock("success","Sucessfully Inserted.");
 					setTimeout(function(){ window.location=root+'product/index/'+<?=$invoicedata->performa_invoice_id?> },1000);
 				 
 			   }
 			   else if(obj.res==2)
 			   {
 				   $("#wallproduct_form").trigger('reset');
-				   unblock_page("success","Sucessfully Updated.");
+				   safeUnblock("success","Sucessfully Updated.");
 					 setTimeout(function(){ window.location=root+'product/index/'+<?=$invoicedata->performa_invoice_id?> },1000);
 					 
 				}
@@ -1151,7 +1171,7 @@ $("#other_product_form").submit(function(event) {
 				}
 			   else
 			   {
-				    unblock_page("error","Something Wrong.") 
+				    safeUnblock("error","Something Wrong.") 
 			   }
 			  
             },
@@ -1190,7 +1210,7 @@ function add_other_row()
 			 var next_row = parseInt($("#other_row_count").val()) + parseInt(1);
 			   
 				$("#other_row_count").val(next_row);
-				unblock_page("",""); 
+				safeUnblock("",""); 
            }
        
   }); 
@@ -1238,26 +1258,26 @@ $("#import_form").submit(function(event) {
 				$(".loader").hide();
 				if(obj.res==1)
 			    {
-				   unblock_page("success","Sucessfully Imported.");
+				   safeUnblock("success","Sucessfully Imported.");
 				   setTimeout(function(){ window.location=root+'product/index/'+<?=$invoicedata->performa_invoice_id?> },1000);
 				  
 			 	}
 				else if(obj.res==2)
 				{
-					unblock_page("error","Worng File. Coloum Doesn't Match");
+					safeUnblock("error","Worng File. Coloum Doesn't Match");
 		 		}
 				else if(obj.res==3)
 				{
-					unblock_page("error","Worng File. Coloum Name Doesn't Match");
+					safeUnblock("error","Worng File. Coloum Name Doesn't Match");
 		 		}
 				else if(obj.res==4)
 				{
-					unblock_page("info","Some records having issue please check excel file");
+					safeUnblock("info","Some records having issue please check excel file");
 					setTimeout(function(){ window.location=root+'excel_error/index/'+<?=$invoicedata->performa_invoice_id?> },1000);
 		 		}
 				else if(obj.res==0)
 				{
-					unblock_page("error","File Not Upload.") 
+					safeUnblock("error","File Not Upload.") 
 				}
             },
             error: function(jqXHR, textStatus, errorThrown) {
@@ -1333,14 +1353,14 @@ $("#wallproduct_form").submit(function(event) {
 			  if(obj.res==1)
 			   {
 				   $("#wallproduct_form").trigger('reset');
-				    unblock_page("success","Sucessfully Inserted.");
+				    safeUnblock("success","Sucessfully Inserted.");
 					setTimeout(function(){ window.location=root+'product/index/'+<?=$invoicedata->performa_invoice_id?> },1000);
 				  
 			   }
 			   else if(obj.res==2)
 			   {
 				   $("#wallproduct_form").trigger('reset');
-				   unblock_page("success","Sucessfully Updated.");
+				   safeUnblock("success","Sucessfully Updated.");
 					 setTimeout(function(){ window.location=root+'product/index/'+<?=$invoicedata->performa_invoice_id?> },1000);
 					 
 				}
@@ -1350,7 +1370,7 @@ $("#wallproduct_form").submit(function(event) {
 				}
 			   else
 			   {
-				    unblock_page("error","Something Wrong.") 
+				    safeUnblock("error","Something Wrong.") 
 			   }
 			  
             },
@@ -1401,7 +1421,7 @@ function remove_wall_row(no)
 					dropdownAutoWidth  : true
 				});
 				$("#row_count").val(next_row);
-				unblock_page("",""); 
+				safeUnblock("",""); 
            }
        
   }); 
@@ -1435,7 +1455,7 @@ function wallload_finish(design_id,val)
 					$("#barcode_no"+val).val('');
 				}
 				wallload_rate(val);
-				unblock_page("",""); 
+				safeUnblock("",""); 
 			}
 		
 		}); 
@@ -1461,7 +1481,7 @@ function wallload_rate(val)
 			    
 				$("#product_rate_per"+val).val((obj.product_rate_per == null)?"SQM":obj.product_rate_per)
 				cal_wallproduct_invoice(val)
-			unblock_page("",""); 
+			safeUnblock("",""); 
            }
        
   }); 
@@ -1649,7 +1669,7 @@ function wallload_data(product_id,no)
 				$("#pallet_type"+no).val(obj.pallet_type_id).trigger('change');
 				$("#box_design"+no).val(obj.box_design_id).trigger('change');
 			 	wallcheck_pallet_status(obj.pallet_status,no)
-				unblock_page("",""); 
+				safeUnblock("",""); 
 			}
 		}); 
 	}
@@ -1885,7 +1905,7 @@ function load_data(product_id,mode,deletestatus,check_production_sheet)
 				{
 					load_packing($("#product_size_id").val(),mode,deletestatus,check_production_sheet)
 				}				
-				unblock_page("",""); 
+				safeUnblock("",""); 
 			}
 		
 	}); 
@@ -1924,7 +1944,7 @@ if(product_size_id != "")
 						$('.select2').prepend('<div class="disabled-select"></div>');
 					}
 					 
-		 	unblock_page("",""); 
+		 	safeUnblock("",""); 
            }
        
   }); 
@@ -1966,7 +1986,7 @@ function load_finish(design_id,val)
 					$("#barcode_no"+val).val('');
 				}
 				load_rate(val);
-				unblock_page("",""); 
+				safeUnblock("",""); 
 			}
 		
 	}); 
@@ -2013,7 +2033,7 @@ function load_rate(val)
 				}
 				cal_product_trn(val)
 				cal_all_total(0)
-				unblock_page("",""); 
+				safeUnblock("",""); 
 			}
 		
 	}); 
@@ -2058,7 +2078,7 @@ $("#model_add").submit(function(event) {
 				$(".loader").hide();
 				if(obj.res==1)
 			    {
-				   unblock_page("success","Sucessfully Inserted.");
+				   safeUnblock("success","Sucessfully Inserted.");
 				   $("#design_id"+$("#row_no").val()).append('<option value="'+obj.packing_model_id+'">'+obj.model_name+'</option>');
 				   $("#design_id"+$("#row_no").val()).val(obj.packing_model_id).trigger('çhange');
 				    $("#finish_id").val('').trigger('change');
@@ -2068,7 +2088,7 @@ $("#model_add").submit(function(event) {
 				}
 				else if(obj.res==2)
 				{
-					unblock_page("info","Already Added.");
+					safeUnblock("info","Already Added.");
 					 
 				 	$("#design_id"+$("#row_no").val()).val(obj.packing_model_id).trigger('çhange');
 				      $("#modeltype").modal('hide');
@@ -2077,7 +2097,7 @@ $("#model_add").submit(function(event) {
 				}
 				else
 				{
-					unblock_page("error","Something Wrong.") 
+					safeUnblock("error","Something Wrong.") 
 				}
             },
             error: function(jqXHR, textStatus, errorThrown) {
@@ -2112,7 +2132,7 @@ function add_row()
 				});
 			$("#row_cont").val(next_row);
 			check_pallet_status($("input[name='pallet_status']:checked").val())
-			unblock_page("",""); 
+			safeUnblock("",""); 
            }
        
   }); 
@@ -2209,6 +2229,26 @@ function invoice_cal()
 </script>
 <script>
 
+// Global helper function to safely unblock page - works even if unblock_page is not defined
+function safeUnblock(type, msg) {
+	if(typeof unblock_page === 'function') {
+		unblock_page(type, msg);
+	} else if(typeof $.unblockUI === 'function') {
+		// Fallback to direct jQuery unblockUI
+		if(type !== "" && msg !== "") {
+			if(typeof toastr !== 'undefined') {
+				toastr[type](msg);
+			}
+		}
+		setTimeout(function(){ $.unblockUI(); }, 500);
+	} else {
+		// Last resort: just show message if toastr is available
+		if(typeof toastr !== 'undefined' && type !== "" && msg !== "") {
+			toastr[type](msg);
+		}
+	}
+}
+
 function check_product(step)
 {
 	 if(<?=count($product_data)?> == 0)
@@ -2230,7 +2270,7 @@ function check_product(step)
 		//	return false;
 		//}
 		update_calc(step,0);
-		unblock_page("success","Sucessfully Updated.");
+		safeUnblock("success","Sucessfully Updated.");
 		 if(<?=$check_production_sheet?> == 1)
 		{
 			 setTimeout(function(){ window.location='<?php echo base_url();?>performa_invoice_pdf/index/<?=$invoicedata->performa_invoice_id ?>'; },1000);
@@ -2253,7 +2293,24 @@ function delete_product(performa_trn_id)
   confirmButtonText: 'Yes, delete it!'
 }).then((result) => {
 		 if (result.value) {
-			block_page();
+			// Safe block_page wrapper
+			if(typeof block_page === 'function') {
+				block_page();
+			} else if(typeof $.blockUI === 'function') {
+				$.blockUI({ css: { 
+					border: 'none', 
+					padding: '0px', 
+					width: '17%',
+					left:'43%',
+					backgroundColor: '#000', 
+					'-webkit-border-radius': '10px', 
+					'-moz-border-radius': '10px', 
+					opacity: .5, 
+					color: '#fff', 
+					zIndex: '10000'
+				},
+				message	:  '<h3> Please wait...</h3>'	});
+			}
 			  $.ajax({ 
               type: "POST", 
               url: root+'product/deleterecord',
@@ -2266,11 +2323,11 @@ function delete_product(performa_trn_id)
 				if(obj.res==1)
 				{
 					updateinvoice(<?=$invoicedata->performa_invoice_id?>);
-					unblock_page('success',"Record Successfully Deleted");
+					safeUnblock('success',"Record Successfully Deleted");
 					 setTimeout(function(){ window.location=root+'product/index/<?=$invoicedata->performa_invoice_id?>'; },1500);
 				}
                 else{
-					unblock_page('error',"Somthing Wrong.")
+					safeUnblock('error',"Somthing Wrong.")
 				}
               }
 			});
@@ -2302,11 +2359,11 @@ function delete_combaine_con(id)
 				if(obj.res==1)
 				{
 					updateinvoice(<?=$invoicedata->performa_invoice_id?>);
-					unblock_page('success',"Record Successfully Deleted");
+					safeUnblock('success',"Record Successfully Deleted");
 					setTimeout(function(){ window.location=root+'product/index/<?=$invoicedata->performa_invoice_id?>'; },1500);
 				}
                 else{
-					unblock_page('error',"Somthing Wrong.")
+					safeUnblock('error',"Somthing Wrong.")
 				}
               }
 			});
@@ -2325,7 +2382,7 @@ function delete_combaine_con(id)
 				}, 
               cache: false, 
               success: function (data) { 
-				 unblock_page("","");
+				 safeUnblock("","");
 			 }
 	});
 }
@@ -2804,7 +2861,7 @@ function make_container_fun(cnt)
 					}, 
 				  success: function (response) { 
 					   $("#make_container_array").val(0)
-						unblock_page("success","Sucessfully Done.");
+						safeUnblock("success","Sucessfully Done.");
 						update_calc(<?=$invoicedata->step?>,0)						
 						setTimeout(function(){ window.location=root+'product/index/'+<?=$invoicedata->performa_invoice_id?> },1000);
 						
@@ -3034,7 +3091,24 @@ $("#product_form").validate({
 	});
 function update_calc(step,val)
 {
-	 block_page();
+	 // Safe block_page wrapper
+	 if(typeof block_page === 'function') {
+		 block_page();
+	 } else if(typeof $.blockUI === 'function') {
+		 $.blockUI({ css: { 
+			 border: 'none', 
+			 padding: '0px', 
+			 width: '17%',
+			 left:'43%',
+			 backgroundColor: '#000', 
+			 '-webkit-border-radius': '10px', 
+			 '-moz-border-radius': '10px', 
+			 opacity: .5, 
+			 color: '#fff', 
+			 zIndex: '10000'
+		 },
+		 message	:  '<h3> Please wait...</h3>'	});
+	 }
 	   $.ajax({ 
              type: "POST",
 			 async: false,			 
@@ -3074,8 +3148,14 @@ function update_calc(step,val)
 						setTimeout(function(){ window.location=root+'product/index/'+<?=$invoicedata->performa_invoice_id?> },1000);
 					}
 					
-					unblock_page("",""); 
-                 }
+					safeUnblock("","");
+                 },
+				 error: function(jqXHR, textStatus, errorThrown) {
+					console.log('AJAX Error:', errorThrown);
+					console.log('Response Text:', jqXHR.responseText);
+					// Unblock page even on error
+					safeUnblock("error","An error occurred. Please try again.");
+				}
              
          }); 
 }
@@ -3100,7 +3180,7 @@ $("#product_form").submit(function(event) {
 		var inp=inps[i];
 		if(inp.value == "")
 		{
-			 unblock_page("error","Please select design.") 
+			 safeUnblock("error","Please select design.") 
 			return false;
 		}
 	}
@@ -3120,14 +3200,14 @@ $("#product_form").submit(function(event) {
 				if(obj.res==1)
 			   {
 					//$("#product_form").trigger('reset');
-				    unblock_page("success","Sucessfully Inserted.");
+				    safeUnblock("success","Sucessfully Inserted.");
 					 setTimeout(function(){ window.location=root+'product/index/'+<?=$invoicedata->performa_invoice_id?> },1000);
 					 
 			   }
 			   else if(obj.res==2)
 			   {
 				   $("#product_form").trigger('reset');
-				   unblock_page("success","Sucessfully Updated.");
+				   safeUnblock("success","Sucessfully Updated.");
 					update_calc(<?=$invoicedata->step?>,1)
 				
 				}
@@ -3137,7 +3217,7 @@ $("#product_form").submit(function(event) {
 				}
 			   else
 			   {
-				    unblock_page("error","Something Wrong.") 
+				    safeUnblock("error","Something Wrong.") 
 			   }
 			  
             },
@@ -3228,7 +3308,7 @@ function edit_product(performa_trn_id,deletestatus,check_production_sheet,other_
 						
 						load_data(obj.product_id,'Edit',deletestatus,check_production_sheet);
 				  }
-					unblock_page("",""); 
+					safeUnblock("",""); 
                }
               
           }); 

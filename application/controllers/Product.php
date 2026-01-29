@@ -1061,13 +1061,15 @@ class Product extends CI_controller
 			'extra_calc_opt'		=> $this->input->post('extra_calc_opt'),
 			'extra_calc_amt'		=> $this->input->post('extra_calc_amt'),
 			'grand_total'			=> $this->input->post('grand_total'),
-			'agent_grand_total'			=> $this->input->post('agent_grand_total'),
 			'special_requirment'	=> nl2br($this->input->post('special_requirment')),
 			'note'					=> nl2br($this->input->post('note')),
 			'invoicevalue_say'		=> $this->input->post('invoicevalue_say'),
 			'seafright_action'		=> $this->input->post('seafright_action'),
 			 
 			);
+		
+		// Remove agent_grand_total from update as the column doesn't exist in the database table
+		// If you need this field, add the column to tbl_performa_invoice table first
 			 
 		$profoma_data['step'] = $this->input->post('step');
 			 
