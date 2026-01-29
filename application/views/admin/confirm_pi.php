@@ -195,6 +195,47 @@ $this->view('lib/header');
 </div>
 <?php $this->view('lib/footer'); ?>
 <script type="text/javascript">
+// Global helper function to safely block page - works even if block_page is not defined
+function safeBlock() {
+	if(typeof block_page === 'function') {
+		block_page();
+	} else if(typeof $.blockUI === 'function') {
+		$.blockUI({ css: {
+			border: 'none',
+			padding: '0px',
+			width: '17%',
+			left:'43%',
+			backgroundColor: '#000',
+			'-webkit-border-radius': '10px',
+			'-moz-border-radius': '10px',
+			opacity: .5,
+			color: '#fff',
+			zIndex: '10000'
+		},
+		message :  '<h3> Please wait...</h3>' });
+	}
+}
+
+// Global helper function to safely unblock page - works even if unblock_page is not defined
+function safeUnblock(type, msg) {
+	if(typeof unblock_page === 'function') {
+		unblock_page(type, msg);
+	} else if(typeof $.unblockUI === 'function') {
+		// Fallback to direct jQuery unblockUI
+		if(type !== "" && msg !== "") {
+			if(typeof toastr !== 'undefined') {
+				toastr[type](msg);
+			}
+		}
+		setTimeout(function(){ $.unblockUI(); }, 500);
+	} else {
+		// Last resort: just show message if toastr is available
+		if(typeof toastr !== 'undefined' && type !== "" && msg !== "") {
+			toastr[type](msg);
+		}
+	}
+}
+
 	$(".select2").select2({
 		width: '100%'
 	});
@@ -210,7 +251,7 @@ $this->view('lib/header');
 		$("#pi_consignee_id").val(pi_consignee_id);
 	}
 	function edit_advance_payment(performa_invoice_id, invoice_no, pi_consignee_id) {
-		block_page();
+		safeBlock();
 		$.ajax({
 			type: "POST",
 			url: root + "confirm_pi/fetch_advance_payment_data",
@@ -231,9 +272,13 @@ $this->view('lib/header');
 				$("#payment_document_file").val(obj.payment_document);
 				$("#payment_document_download_btn").show();
 				$("#payment_document_download_btn").attr("href", root + "upload/" + obj.payment_document);
-				unblock_page("", "");
+				safeUnblock("", "");
+			},
+			error: function(jqXHR, textStatus, errorThrown) {
+				console.log('AJAX Error:', errorThrown);
+				console.log('Response Text:', jqXHR.responseText);
+				safeUnblock("error", "An error occurred while fetching payment data. Please try again.");
 			}
-
 		});
 	}
 	function create_po_invoice() {
@@ -249,8 +294,22 @@ $this->view('lib/header');
 		}
 	}
 	function confirm_pi(id, status) {
+		var title = 'You want to change status from confirm PI to pending?';
+		var successMsg = 'PI status changed successfully';
+		
+		if(status == 0) {
+			title = 'You want to change status from confirm PI to pending?';
+			successMsg = 'PI moved to pending successfully';
+		} else if(status == 1) {
+			title = 'You want to confirm this PI?';
+			successMsg = 'PI successfully confirmed';
+		} else if(status == 2) {
+			title = 'You want to archive this PI?';
+			successMsg = 'PI archived successfully';
+		}
+		
 		Swal.fire({
-			title: 'You want to change status from confirm PI to pending?',
+			title: title,
 			type: 'info',
 			showCancelButton: true,
 			confirmButtonColor: '#3085d6',
@@ -258,7 +317,7 @@ $this->view('lib/header');
 			confirmButtonText: 'Yes, do it!'
 		}).then((result) => {
 			if (result.value) {
-				block_page();
+				safeBlock();
 				$.ajax({
 					type: "POST",
 					url: root + 'invoice_listing/confirmpi',
@@ -270,12 +329,17 @@ $this->view('lib/header');
 					success: function (data) {
 						var obj = JSON.parse(data);
 						if (obj.res == 1) {
-							unblock_page('success', "PI Successfully confirmed");
+							safeUnblock('success', successMsg);
 							setTimeout(function () { window.location = root + 'confirm_pi'; }, 1500);
 						}
 						else {
-							unblock_page('error', "Somthing Wrong.")
+							safeUnblock('error', "Something went wrong. Please try again.");
 						}
+					},
+					error: function(jqXHR, textStatus, errorThrown) {
+						console.log('AJAX Error:', errorThrown);
+						console.log('Response Text:', jqXHR.responseText);
+						safeUnblock('error', "An error occurred. Please try again.");
 					}
 				});
 			}
@@ -329,7 +393,7 @@ $this->view('lib/header');
 		if (!$("#advance_payment_form").valid()) {
 			return false;
 		}
-		block_page();
+		safeBlock();
 		var postData = new FormData(this);
 
 		$.ajax({
@@ -344,18 +408,17 @@ $this->view('lib/header');
 				var obj = JSON.parse(responseData);
 				$(".loader").hide();
 				if (obj.res == 1) {
-
-					unblock_page("success", "Sucessfully Inserted.");
+					safeUnblock("success", "Successfully Inserted.");
 					setTimeout(function () { location.reload(); }, 100);
 				}
-
 				else {
-					unblock_page("error", "Something Wrong.")
-
+					safeUnblock("error", "Something went wrong. Please try again.");
 				}
 			},
 			error: function (jqXHR, textStatus, errorThrown) {
-				console.log(errorThrown);
+				console.log('AJAX Error:', errorThrown);
+				console.log('Response Text:', jqXHR.responseText);
+				safeUnblock("error", "An error occurred. Please try again.");
 			}
 		});
 	});
@@ -580,7 +643,7 @@ $this->view('lib/header');
 
 	}
 	function loaded_size(performa_invoice_id, html, url) {
-		block_page();
+		safeBlock();
 		$.ajax({
 			type: "POST",
 			url: root + url,
@@ -599,7 +662,12 @@ $this->view('lib/header');
 
 				$(".productdetailhtml1").html(data);
 				$("#myModal1").modal('show')
-				unblock_page("", "");
+				safeUnblock("", "");
+			},
+			error: function(jqXHR, textStatus, errorThrown) {
+				console.log('AJAX Error:', errorThrown);
+				console.log('Response Text:', jqXHR.responseText);
+				safeUnblock("error", "An error occurred while loading data. Please try again.");
 			}
 		});
 	}

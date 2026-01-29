@@ -25,7 +25,13 @@ class Admin_invoice_list extends CI_Model{
 	}
 	public function confirmpi($id,$status)
 	{
-		$data = array("confirm_status"=>$status,"confirm_date"=>date('Y-m-d'));
+		// Only set confirm_date when confirming (status=1), clear it when unconfirming (status=0)
+		if($status == 1) {
+			$data = array("confirm_status"=>$status,"confirm_date"=>date('Y-m-d'));
+		} else {
+			// When unconfirming (status=0) or archiving (status=2), clear confirm_date
+			$data = array("confirm_status"=>$status,"confirm_date"=>null);
+		}
 		$this->db->where('performa_invoice_id',$id);
 		return $this->db->update('tbl_performa_invoice',$data);	
 	}  

@@ -307,6 +307,47 @@ $this->view('lib/header');
 </div>
 <?php $this->view('lib/footer'); ?>
 <script type="text/javascript">
+// Global helper function to safely block page - works even if block_page is not defined
+function safeBlock() {
+	if(typeof block_page === 'function') {
+		safeBlock();
+	} else if(typeof $.blockUI === 'function') {
+		$.blockUI({ css: {
+			border: 'none',
+			padding: '0px',
+			width: '17%',
+			left:'43%',
+			backgroundColor: '#000',
+			'-webkit-border-radius': '10px',
+			'-moz-border-radius': '10px',
+			opacity: .5,
+			color: '#fff',
+			zIndex: '10000'
+		},
+		message :  '<h3> Please wait...</h3>' });
+	}
+}
+
+// Global helper function to safely unblock page - works even if unblock_page is not defined
+function safeUnblock(type, msg) {
+	if(typeof unblock_page === 'function') {
+		unblock_page(type, msg);
+	} else if(typeof $.unblockUI === 'function') {
+		// Fallback to direct jQuery unblockUI
+		if(type !== "" && msg !== "") {
+			if(typeof toastr !== 'undefined') {
+				toastr[type](msg);
+			}
+		}
+		setTimeout(function(){ $.unblockUI(); }, 500);
+	} else {
+		// Last resort: just show message if toastr is available
+		if(typeof toastr !== 'undefined' && type !== "" && msg !== "") {
+			toastr[type](msg);
+		}
+	}
+}
+
 $(document).ready(function(){
 		/* Get iframe src attribute value i.e. YouTube video url
 		and store it in a variable */
@@ -330,15 +371,25 @@ $(".select2").select2({
 });
 function confirm_pi(id,status)
 {
-	var title="You want to confirm PI?"
+	var title="You want to confirm PI?";
+	var successMsg = "PI status changed successfully";
+	
 	if(status == 2)
 	{
-		 title="You want to archive PI?"
+		 title="You want to archive PI?";
+		 successMsg = "PI archived successfully";
 	}
 	else if(status == 0)
 	{
-		 title="You want to unarchive PI?"
+		 title="You want to unarchive PI?";
+		 successMsg = "PI unarchived successfully";
 	}
+	else if(status == 1)
+	{
+		 title="You want to confirm PI?";
+		 successMsg = "PI successfully confirmed";
+	}
+	
 	Swal.fire({
 		title: title,
 		type: 'info',
@@ -348,7 +399,7 @@ function confirm_pi(id,status)
 		confirmButtonText: 'Yes, do it!'
 }).then((result) => {
 		 if (result.value) {
-			block_page();
+			safeBlock();
 			  $.ajax({ 
               type: "POST", 
               url: root+'invoice_listing/confirmpi',
@@ -361,17 +412,18 @@ function confirm_pi(id,status)
 				var obj = JSON.parse(data);
 				if(obj.res==1)
 				{ 
-					if(status == 1)
-					{
-						unblock_page('success',"PI Successfully confirmed");
-					}
-				 
+					safeUnblock('success', successMsg);
 					setTimeout(function(){ window.location=root+'invoice_listing'; },1500);
 				}
                 else{
-					unblock_page('error',"Somthing Wrong.")
+					safeUnblock('error',"Something went wrong. Please try again.")
 				}
-              }
+              },
+			  error: function(jqXHR, textStatus, errorThrown) {
+				  console.log('AJAX Error:', errorThrown);
+				  console.log('Response Text:', jqXHR.responseText);
+				  safeUnblock('error', "An error occurred. Please try again.");
+			  }
 			});
 		 }
 		});
@@ -662,7 +714,7 @@ function loaded_size(performa_invoice_id,html,url)
 					 
 					 $(".productdetailhtml1").html(data);
 					 $("#myModal1").modal('show')
-					unblock_page("","");
+					safeUnblock("","");
               }
 			});
 }
