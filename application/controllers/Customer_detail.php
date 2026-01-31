@@ -496,7 +496,8 @@ class Customer_detail extends CI_controller
 	{
 		if(!empty($this->session->id)  && $this->session->title == TITLE)
 		{
-			$data['forwarername'] = implode(",",$this->input->post('forwarer_id'));
+			$forwarer_id = $this->input->post('forwarer_id');
+			$data['forwarername'] = is_array($forwarer_id) ? implode(",", $forwarer_id) : (is_string($forwarer_id) ? $forwarer_id : '');
 			$data['fd']	= 'manage';
 			$this->load->model('admin_company_detail');	
 			$data['company_detail'] = $this->admin_company_detail->s_select();
@@ -539,7 +540,8 @@ class Customer_detail extends CI_controller
 		public function manage()
 		{
 			$check_consigne = $this->sli->check_consigne_id($this->input->post('c_companyname'));
-			$forwarername = implode(",",$this->input->post('forwarer_id'));
+			$forwarer_id = $this->input->post('forwarer_id');
+			$forwarername = is_array($forwarer_id) ? implode(",", $forwarer_id) : (is_string($forwarer_id) ? $forwarer_id : '');
 		 	$data = array(
 						'agent_id'				=> $this->input->post('agent_id'),
 						'forwarer_id'			=> $forwarername,
