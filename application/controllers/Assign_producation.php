@@ -236,6 +236,7 @@ class Assign_producation extends CI_controller
 		$btn .= ' <a class="tooltips" data-toggle="tooltip" data-title="Envelope Print" href="' . base_url() . 'producation_detail/envelope_print/' . $row->performa_invoice_id . '"  data-original-title="" title=""><i class="fa fa-print"></i> Envelope Print</a>';
 		$btn .= ' <a class="tooltips" data-toggle="tooltip" data-title="Label Print" href="' . base_url() . 'producation_detail/label_print/' . $row->performa_invoice_id . '"  data-original-title="" title=""><i class="fa fa-print"></i> Label Print</a>';
 		$btn .= ' <a class="tooltips" data-toggle="tooltip" data-title="On the Way" href="javascript:;" onclick="open_on_the_way_modal(' . $row->performa_invoice_id . ');" data-original-title="" title=""><i class="fa fa-truck"></i> On the Way</a>';
+		$btn .= ' <a class="tooltips" data-toggle="tooltip" data-title="Add to Inventory" href="javascript:;" onclick="open_add_to_inventory_modal(' . $row->performa_invoice_id . ');" data-original-title="" title=""><i class="fa fa-archive"></i> Add to Inventory</a>';
 		
 		return $btn;
 	}

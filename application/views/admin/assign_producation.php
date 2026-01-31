@@ -255,7 +255,107 @@ $this->view('lib/footer');
     </div>
 </div>
 
+<!-- Add to Inventory Modal -->
+<div id="addToInventoryModal" class="modal fade" role="dialog">
+    <div class="modal-dialog modal-md">
+        <div class="modal-content add-to-inventory-modal">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">Add to Inventory</h4>
+            </div>
+            <form id="add_to_inventory_form" action="javascript:;" method="post">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="control-label" for="inventory_warehouse">
+                            <strong>Select Warehouse</strong>
+                        </label>
+                        <div class="radio-group" style="margin-top: 10px;">
+                            <label class="radio-inline" style="margin-right: 20px;">
+                                <input type="radio" name="inventory_warehouse" value="Warehouse1"> Warehouse1
+                            </label>
+                            <label class="radio-inline" style="margin-right: 20px;">
+                                <input type="radio" name="inventory_warehouse" value="Warehouse2"> Warehouse2
+                            </label>
+                            <label class="radio-inline">
+                                <input type="radio" name="inventory_warehouse" value="Warehouse3" checked> Warehouse3
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="control-label" for="inventory_date">
+                            <strong>Inventory Date</strong>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-addon">
+                                <i class="fa fa-calendar"></i>
+                            </span>
+                            <input type="text" placeholder="dd-mm-yyyy" id="inventory_date" name="inventory_date" class="form-control inventory-date-picker" value="">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="control-label" for="inventory_notes">
+                            <strong>Notes (Optional)</strong>
+                        </label>
+                        <textarea id="inventory_notes" name="inventory_notes" class="form-control" rows="4" placeholder="Add any notes about this inventory addition..."></textarea>
+                    </div>
+                    
+                    <input type="hidden" id="add_to_inventory_performa_invoice_id" name="performa_invoice_id" value="">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add to Inventory</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <style>
+/* Add to Inventory modal - match shared design */
+#addToInventoryModal .modal-content {
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+#addToInventoryModal .modal-header {
+    border-bottom: 1px solid #eee;
+    padding: 15px 20px;
+}
+
+#addToInventoryModal .modal-title {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+#addToInventoryModal .modal-body {
+    padding: 20px 25px;
+}
+
+#addToInventoryModal .control-label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #333;
+}
+
+#addToInventoryModal .radio-inline {
+    font-weight: normal;
+    cursor: pointer;
+}
+
+#addToInventoryModal .modal-footer {
+    border-top: 1px solid #eee;
+    padding: 15px 25px;
+    background: #f9f9f9;
+}
+
+#addToInventoryModal .btn-primary {
+    padding: 8px 20px;
+}
+
 /* Theme-based styling for On the Way modal */
 #onTheWayModal .modal-content {
     overflow: hidden;
@@ -609,6 +709,37 @@ $("#on_the_way_form").validate({
 			required: "Please select Estimated Arrival Date"
 		}
 	}
+});
+
+// Function to open Add to Inventory modal
+function open_add_to_inventory_modal(performa_invoice_id) {
+	$("#add_to_inventory_performa_invoice_id").val(performa_invoice_id);
+	$("#add_to_inventory_form")[0].reset();
+	$("input[name='inventory_warehouse'][value='Warehouse3']").prop("checked", true);
+	
+	$('#inventory_date').datepicker({
+		autoclose: true,
+		format: 'dd-mm-yyyy',
+		orientation: 'bottom auto',
+		todayHighlight: true
+	});
+	
+	$("#addToInventoryModal").modal({
+		backdrop: 'static',
+		keyboard: false,
+		show: true
+	});
+}
+
+// Handle Add to Inventory form submission (design only - no backend)
+$("#add_to_inventory_form").submit(function(event) {
+	event.preventDefault();
+	var warehouse = $("input[name='inventory_warehouse']:checked").val();
+	var inventory_date = $("#inventory_date").val();
+	var notes = $("#inventory_notes").val();
+	// Design only: just close modal
+	$("#addToInventoryModal").modal('hide');
+	$("#add_to_inventory_form")[0].reset();
 });
 //load_data_table()
 // function load_data_table()
