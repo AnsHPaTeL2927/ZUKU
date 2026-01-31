@@ -868,6 +868,20 @@ $this->view('lib/header');
 	$this->view('lib/addcurrency');
  ?>
 <script>
+// Safe block/unblock - use when block_page/unblock_page from footer may not be loaded (e.g. form page)
+function safeBlock() {
+	if(typeof block_page === 'function') { block_page(); }
+	else if(typeof $.blockUI === 'function') {
+		$.blockUI({ css: { border: 'none', padding: '0px', width: '17%', left:'43%', backgroundColor: '#000', '-webkit-border-radius': '10px', '-moz-border-radius': '10px', opacity: .5, color: '#fff', zIndex: '10000' }, message: '<h3> Please wait...</h3>' });
+	}
+}
+function safeUnblock(type, msg) {
+	if(typeof unblock_page === 'function') { unblock_page(type, msg); }
+	else {
+		if(type !== "" && msg !== "" && typeof toastr !== 'undefined') { toastr[type](msg); }
+		if(typeof $.unblockUI === 'function') { setTimeout(function(){ $.unblockUI(); }, 500); }
+	}
+}
 function refreshPage(){
     window.location.reload();
 } 
@@ -897,7 +911,7 @@ $("#add_bank_detail").submit(function(event) {
 	{
 		return false;
 	}
-	 block_page();
+	 safeBlock();
 	var postData= new FormData(this);
 	 $.ajax({
             type: "post",
@@ -913,22 +927,22 @@ $("#add_bank_detail").submit(function(event) {
 			   if(obj.res==1)
 			   {
 				    $("#add_bank_detail").trigger('reset');
-				    unblock_page("success","Sucessfully Added.");
+				    safeUnblock("success","Sucessfully Added.");
 					setTimeout(function(){ window.location=root+'customer_detail'; },1500);
 				}
 				else  if(obj.res==2)
 			   {
-				     unblock_page("success","Sucessfully Updated.");
+				     safeUnblock("success","Sucessfully Updated.");
 					setTimeout(function(){ window.location=root+'customer_detail'; },1500);
 				}
 				else  if(obj.res == 3)
 				{
-					unblock_page("info","Record already exist");
+					safeUnblock("info","Record already exist");
 				}
 				
 			   else
 			   {
-				    unblock_page("error","Something Wrong.") 
+				    safeUnblock("error","Something Wrong.") 
 					 
 			   }
             },
@@ -1069,7 +1083,7 @@ $("#assign_user_form").submit(function(event) {
 	{
 		return false;
 	}
-	 block_page();
+	 safeBlock();
 	var postData= new FormData(this);
 	 $.ajax({
             type: "post",
@@ -1085,17 +1099,17 @@ $("#assign_user_form").submit(function(event) {
 			   if(obj.res==1)
 			   {
 				    $("#assign_user_form").trigger('reset');
-				    unblock_page("success","Sucessfully Added.");
+				    safeUnblock("success","Sucessfully Added.");
 					assign_user(obj.customer_id)
 				}
 				else  if(obj.res==2)
 			   {
-				     unblock_page("success","Sucessfully Updated.");
+				     safeUnblock("success","Sucessfully Updated.");
 					setTimeout(function(){ window.location=root+'Customer_detail/index'; },1500);
 				}
 			   else
 			   {
-				    unblock_page("error","Something Wrong.") 
+				    safeUnblock("error","Something Wrong.") 
 					setTimeout(function(){ window.location=root+'Customer_detail/index'; },1500);
 			   }
             },
@@ -1111,7 +1125,7 @@ $("#assign_designs_form").submit(function(event) {
 	{
 		return false;
 	}
-	 block_page();
+	 safeBlock();
 	var postData= new FormData(this);
 	 $.ajax({
             type: "post",
@@ -1127,17 +1141,17 @@ $("#assign_designs_form").submit(function(event) {
 			   if(obj.res==1)
 			   {
 				    $("#assign_designs_form").trigger('reset');
-				    unblock_page("success","Sucessfully Added.");
+				    safeUnblock("success","Sucessfully Added.");
 					assign_designs(obj.customer_id)
 				}
 				else  if(obj.res==2)
 			   {
-				     unblock_page("success","Sucessfully Updated.");
+				     safeUnblock("success","Sucessfully Updated.");
 					setTimeout(function(){ window.location=root+'Customer_detail/index'; },1500);
 				}
 			   else
 			   {
-				    unblock_page("error","Something Wrong.") 
+				    safeUnblock("error","Something Wrong.") 
 					setTimeout(function(){ window.location=root+'Customer_detail/index'; },1500);
 			   }
             },
@@ -1150,7 +1164,7 @@ $("#assign_designs_form").submit(function(event) {
 
 function assign_user(customer_id1)
 {
-	block_page();
+	safeBlock();
      $.ajax({ 
               type: "POST", 
               url: root+"Customer_detail/fetchuser_data",
@@ -1169,7 +1183,7 @@ function assign_user(customer_id1)
 				  $("#customer_id1").val(customer_id1);
 				  $(".assign_customer_list").html(obj.assigncust);
 				     
-					unblock_page("",""); 
+					safeUnblock("",""); 
                   }
               
           });
@@ -1178,7 +1192,7 @@ function assign_user(customer_id1)
 
 function assign_designs(designid1)
 {
-	block_page();
+	safeBlock();
      $.ajax({ 
               type: "POST", 
               url: root+"Customer_detail/fetchudesign_data",
@@ -1197,7 +1211,7 @@ function assign_designs(designid1)
 				  $("#designid1").val(designid1);
 				  $(".assign_designs_list").html(obj.assigndesign);
 				     
-					unblock_page("",""); 
+					safeUnblock("",""); 
                   }
               
           });
@@ -1222,7 +1236,7 @@ $("#import_form").submit(function(event) {
 		return false;
 	}
 	 
-	block_page();
+	safeBlock();
 	var postData= new FormData(this);
 	var url = root+'customer_detail/import_customer';
 	 
@@ -1239,28 +1253,28 @@ $("#import_form").submit(function(event) {
 				$(".loader").hide();
 				if(obj.res==1)
 			    {
-				   unblock_page("success","Sucessfully Imported.");
+				   safeUnblock("success","Sucessfully Imported.");
 				   setTimeout(function(){ window.location=root+'customer_detail' },1000);
 				 
 			 	}
 				else if(obj.res==2)
 				{
-					unblock_page("error","Worng File. Coloum Doesn't Match");
+					safeUnblock("error","Worng File. Coloum Doesn't Match");
 		 		}
 				else if(obj.res==3)
 				{
-					unblock_page("error","Worng File. Coloum Name Doesn't Match");
+					safeUnblock("error","Worng File. Coloum Name Doesn't Match");
 		 		}
 				else if(obj.res==4)
 				{
 					$(".product_html").hide();
 					$(".error_html").show();
 					$(".error_html").html(obj.error_html);
-			 		unblock_page("error","Some Record having error.");
+			 		safeUnblock("error","Some Record having error.");
 		 		}
 			 	else if(obj.res==0)
 				{
-					unblock_page("error","File Not Upload.") 
+					safeUnblock("error","File Not Upload.") 
 				}
             },
             error: function(jqXHR, textStatus, errorThrown) {
@@ -1299,7 +1313,7 @@ function archive_record(id,status)
   confirmButtonText: 'Yes, do it!'
 }).then((result) => {
 		 if (result.value) {
-			block_page();
+			safeBlock();
 			  $.ajax({ 
               type: "POST", 
               url: root+'customer_detail/archive_record',
@@ -1314,16 +1328,16 @@ function archive_record(id,status)
 				{
 					if(status == 0)
 					{
-						unblock_page('success',"Customer successfully unarchived");
+						safeUnblock('success',"Customer successfully unarchived");
 					}
 					else
 					{
-						unblock_page('success',"Customer successfully archived");
+						safeUnblock('success',"Customer successfully archived");
 					}
 					setTimeout(function(){ window.location=root+'customer_detail'; },1500);
 				}
                 else{
-					unblock_page('error',"Somthing Wrong.")
+					safeUnblock('error',"Somthing Wrong.")
 				}
               }
 			});
@@ -1520,7 +1534,7 @@ $("#customer_form").submit(function(event) {
 	{
 		return false;
 	}
-	 block_page();
+	 safeBlock();
 	var postData= new FormData(this);
 	postData.append("mode","add");
 	 
@@ -1538,7 +1552,7 @@ $("#customer_form").submit(function(event) {
 				$(".loader").hide();
 				if(obj.res==1)
 			    {
-				   unblock_page("success","Sucessfully saved.");
+				   safeUnblock("success","Sucessfully saved.");
 				   var val = $(document.activeElement).val();
 				   if(val == "1")
 				   {
@@ -1552,7 +1566,7 @@ $("#customer_form").submit(function(event) {
 				}
 				else if(obj.res==2)
 				{
-				    unblock_page("success","Sucessfully Updated.");
+				    safeUnblock("success","Sucessfully Updated.");
 					var val = $(document.activeElement).val();
 					if(val == "1")
 					{
@@ -1566,12 +1580,12 @@ $("#customer_form").submit(function(event) {
 				}
 				else if(obj.res==3)
 				{
-					unblock_page("info","Record already exist");
+					safeUnblock("info","Record already exist");
 									    
 				}
 				else
 				{
-					unblock_page("error","Something Wrong.") 
+					safeUnblock("error","Something Wrong.") 
 				}
             },
             error: function(jqXHR, textStatus, errorThrown) {
@@ -1587,7 +1601,7 @@ $("#customer_form").submit(function(event) {
 		// return false;
 	// }
 	 
-	// block_page();
+	// safeBlock();
 	// var postData= new FormData(this);
 	 // postData.append("mode","add");
 	// $.ajax({
@@ -1604,20 +1618,20 @@ $("#customer_form").submit(function(event) {
 				// if(obj.res==1)
 				// {
 					
-						// unblock_page("success","Sucessfully Added.");
+						// safeUnblock("success","Sucessfully Added.");
 						// setTimeout(function(){ window.location=root+'Customer_detail'; },1500);
 					
 				// }
 				// else if(obj.res==2)
 				// {
 					// $("#c_companyname").focus();
-					// unblock_page("error","Company Name already exist");
+					// safeUnblock("error","Company Name already exist");
 					// //$("#help_form").trigger('reset');
 					
 				// }
 				// else
 				// {
-					// unblock_page("error","Something Wrong.") 
+					// safeUnblock("error","Something Wrong.") 
 				// }
             // },
             // error: function(jqXHR, textStatus, errorThrown) {
@@ -1633,7 +1647,7 @@ $("#opening_balance_form").submit(function(event) {
 		return false;
 	}
 	 
-	block_page();
+	safeBlock();
 	var postData= new FormData(this);
 	 
 	$.ajax({
@@ -1650,13 +1664,13 @@ $("#opening_balance_form").submit(function(event) {
 				if(obj.res==1)
 			   {
 				   
-					unblock_page("success","Sucessfully Updated.");
+					safeUnblock("success","Sucessfully Updated.");
 					 setTimeout(function(){ location.reload() },1500);
 				 
 			   }
 			   else
 			   {
-				    unblock_page("error","Something Wrong.") 
+				    safeUnblock("error","Something Wrong.") 
 				   
 			   }
             },
@@ -1673,7 +1687,7 @@ $("#country_add").submit(function(event) {
 		return false;
 	}
 	 
-	block_page();
+	safeBlock();
 	var postData= new FormData(this);
 	postData.append("mode","1");
  
@@ -1693,14 +1707,14 @@ $("#country_add").submit(function(event) {
 				   $("#consigner_form").trigger('reset');
 				    $('#countryadd').modal("hide") 
 					$('#forwareradd').modal("hide")
-					unblock_page("success","Sucessfully Inserted.");
+					safeUnblock("success","Sucessfully Inserted.");
 				    $("#country_id").append("<option value='"+obj.id+"' selected>"+obj.cname+"</option>");
 					$("#country_id").val(obj.id)
 				 
 			   }
 			   else
 			   {
-				    unblock_page("error","Something Wrong.") 
+				    safeUnblock("error","Something Wrong.") 
 				   
 			   }
             },
@@ -1717,7 +1731,7 @@ $("#supplier_name").submit(function(event) {
 		return false;
 	}
 	 
-	block_page();
+	safeBlock();
 	var postData= new FormData(this);
 	postData.append("mode","add");
  
@@ -1737,14 +1751,14 @@ $("#supplier_name").submit(function(event) {
 				   $("#supplier_name").trigger('reset');
 				    $('#countryadd').modal("hide") 
 					$('#forwareradd').modal("hide")
-					unblock_page("success","Sucessfully Inserted.");
+					safeUnblock("success","Sucessfully Inserted.");
 				    $("#forwarer_id").append("<option value='"+obj.id+"' selected>"+obj.c_name+"</option>");
 					//$("#forwarer_id").val(obj.id)
 				 
 			   }
 			   else
 			   {
-				    unblock_page("error","Something Wrong.") 
+				    safeUnblock("error","Something Wrong.") 
 				   
 			   }
             },
@@ -1761,7 +1775,7 @@ $("#currency_add").submit(function(event) {
 		return false;
 	}
 	 
-	block_page();
+	safeBlock();
 	var postData= new FormData(this);
 	postData.append("mode","add");
 	$.ajax({
@@ -1779,13 +1793,13 @@ $("#currency_add").submit(function(event) {
 			   {
 				  $("#currency_add").trigger('reset');
 				    $('#currencyadd').modal("hide")
-					unblock_page("success","Sucessfully Inserted.");
+					safeUnblock("success","Sucessfully Inserted.");
 				    $("#currency_id").append("<option value='"+obj.id+"' selected>"+obj.currency+"</option>");
 					$("#currency_id").select2("val",obj.id);
 				}
 			   else
 			   {
-				    unblock_page("error","Something Wrong.") 
+				    safeUnblock("error","Something Wrong.") 
 				   
 			   }
             },
@@ -1797,7 +1811,7 @@ $("#currency_add").submit(function(event) {
 
 function reamove_assign_user(deleleid,customer_id1)
 {
-	block_page();
+	safeBlock();
      $.ajax({ 
               type: "POST", 
               url: root+"Customer_detail/remove_user_record",
@@ -1809,14 +1823,14 @@ function reamove_assign_user(deleleid,customer_id1)
 						if(obj.res==1)
 						{
 							$("#assign_user_form").trigger('reset');
-							unblock_page("success","Sucessfully Removed.");
+							safeUnblock("success","Sucessfully Removed.");
 							assign_user(customer_id1)
 						}
 					 	else
 						{
-							unblock_page("error","Something Wrong.") 
+							safeUnblock("error","Something Wrong.") 
 						}
-					unblock_page("",""); 
+					safeUnblock("",""); 
                   }
               
           });
@@ -1837,7 +1851,7 @@ function bank_data(id,bank_id)
 	else
 	{
 		 
-	 block_page();
+	 safeBlock();
      $.ajax({ 
               type: "POST", 
               url: root+"bank_detail/form_edit1",
@@ -1860,7 +1874,7 @@ function bank_data(id,bank_id)
 						$("#bank_ad_code").val(obj.bank_ad_code);
 						$("#iban_number").val(obj.iban_number);
 						$("#eid2").val(id);
-					unblock_page("",""); 
+					safeUnblock("",""); 
                   }
               
           }); 
