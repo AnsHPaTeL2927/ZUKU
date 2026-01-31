@@ -1174,47 +1174,6 @@ function view_pdf(no)
 
 
 <script>
-// Global helper function to safely block page - works even if block_page is not defined
-function safeBlock() {
-	if(typeof block_page === 'function') {
-		block_page();
-	} else if(typeof $.blockUI === 'function') {
-		$.blockUI({ css: {
-			border: 'none',
-			padding: '0px',
-			width: '17%',
-			left:'43%',
-			backgroundColor: '#000',
-			'-webkit-border-radius': '10px',
-			'-moz-border-radius': '10px',
-			opacity: .5,
-			color: '#fff',
-			zIndex: '10000'
-		},
-		message :  '<h3> Please wait...</h3>' });
-	}
-}
-
-// Global helper function to safely unblock page - works even if unblock_page is not defined
-function safeUnblock(type, msg) {
-	if(typeof unblock_page === 'function') {
-		unblock_page(type, msg);
-	} else if(typeof $.unblockUI === 'function') {
-		// Fallback to direct jQuery unblockUI
-		if(type !== "" && msg !== "") {
-			if(typeof toastr !== 'undefined') {
-				toastr[type](msg);
-			}
-		}
-		setTimeout(function(){ $.unblockUI(); }, 500);
-	} else {
-		// Last resort: just show message if toastr is available
-		if(typeof toastr !== 'undefined' && type !== "" && msg !== "") {
-			toastr[type](msg);
-		}
-	}
-}
-
 $(document).ready(function() {
  
 	$("#addition_details_form").validate({
@@ -1404,7 +1363,7 @@ if (total_container !== allowed_container) {
 
 
 function proceedSubmit() {
-    safeBlock();
+    block_page();
     var postData = new FormData($("#addition_details_form")[0]);
 
     $.ajax({
@@ -1418,17 +1377,17 @@ function proceedSubmit() {
             var obj = JSON.parse(responseData);
             $(".loader").hide();
             if (obj.res == 1) {
-                safeUnblock("success","Successfully Inserted.");
+                unblock_page("success","Successfully Inserted.");
                 setTimeout(function(){ 
                     window.location = root + "view_producation/index_extrapallet/" + obj.production_mst_id; 
                 }, 100);
             } else {
-                safeUnblock("error","Something Wrong.");
+                unblock_page("error","Something Wrong.");
             }
         },
         error: function(jqXHR, textStatus, errorThrown) {
             console.log(errorThrown);
-            safeUnblock("error","Something Wrong.");
+            unblock_page("error","Something Wrong.");
         }
     });
 }
@@ -1500,7 +1459,7 @@ $("#pallet_cap_add").submit(function(event) {
 	{
 		return false;
 	}
-	 safeBlock();
+	 block_page();
 	var postData= new FormData(this);
 	postData.append("mode","add");
 	 
@@ -1519,7 +1478,7 @@ $("#pallet_cap_add").submit(function(event) {
 				if(obj.res==1)
 			    {
 				 
-				   safeUnblock("success","Successfully Inserted.");
+				   unblock_page("success","Sucessfully Inserted.");
 					$("#pallet_cap_add").trigger('reset');
 					$("#mypallet").modal('hide');
 					$("#pallet_cap_id").append('<option value="'+obj.pallet_cap_id+'">'+obj.pallet_cap_name+'</option>');
@@ -1527,11 +1486,11 @@ $("#pallet_cap_add").submit(function(event) {
 				}
 				else if(obj.res==2)
 				{
-					safeUnblock("info","Already Added.");
+					unblock_page("info","Already Added.");
 				}
 				else
 				{
-					safeUnblock("error","Something Wrong.") 
+					unblock_page("error","Something Wrong.") 
 				}
             },
             error: function(jqXHR, textStatus, errorThrown) {
@@ -1558,7 +1517,7 @@ $("#fumigation_add").submit(function(event) {
 	{
 		return false;
 	}
-	 safeBlock();
+	 block_page();
 	var postData= new FormData(this);
 	postData.append("mode","add");
 	 
@@ -1576,7 +1535,7 @@ $("#fumigation_add").submit(function(event) {
 				$(".loader").hide();
 				if(obj.res==1)
 			    {
-				   safeUnblock("success","Successfully Inserted.");
+				   unblock_page("success","Sucessfully Inserted.");
 				  $("#fumigation_add").trigger('reset');
 				  $("#myFumigation").modal('hide');
 				 $("#fumigation_id").append('<option value="'+obj.fumigation_id+'">'+obj.fumigation_name+'</option>');
@@ -1584,11 +1543,11 @@ $("#fumigation_add").submit(function(event) {
 				}
 				else if(obj.res==2)
 				{
-					safeUnblock("info","Already Added.");
+					unblock_page("info","Already Added.");
 				}
 				else
 				{
-					safeUnblock("error","Something Wrong.") 
+					unblock_page("error","Something Wrong.") 
 				}
             },
             error: function(jqXHR, textStatus, errorThrown) {
@@ -1719,7 +1678,7 @@ $(".select1").select2({
 		$("#excelModal").modal('show');
 		return false;
 	}
-	safeBlock();
+	block_page();
 	$.ajax({ 
              type: "POST", 
              url: root+'create_producation/copy_containter',
@@ -1753,7 +1712,7 @@ $(".select1").select2({
              }, 
              cache: false, 
              success: function (data) { 
-		       safeUnblock("success","Successfully Created.");
+		       unblock_page("success","Sucessfully Created.");
 			setTimeout(function(){ window.location='<?=base_url()?>view_producation/index/'+data; },1000);
              }
 			});
@@ -1772,7 +1731,7 @@ function delete_record(production_mst_id)
   confirmButtonText: 'Yes, delete it!'
 }).then((result) => {
 		 if (result.value) {
-			safeBlock();
+			block_page();
 			  $.ajax({ 
               type: "POST", 
               url: root+'create_producation/deleterecord',
@@ -1785,11 +1744,11 @@ function delete_record(production_mst_id)
 				if(obj.res==1)
 				{
 					 
-					safeUnblock('success',"Record Successfully Deleted");
+					unblock_page('success',"Record Successfully Deleted");
 					setTimeout(function(){ location.reload(); },1500);
 				}
                 else{
-					safeUnblock('error',"Something Wrong.")
+					unblock_page('error',"Somthing Wrong.")
 				}
               }
 			});

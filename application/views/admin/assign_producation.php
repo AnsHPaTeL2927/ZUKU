@@ -195,12 +195,229 @@ $this->view('lib/footer');
     </div>
 </div>
 </div>
+
+<!-- On the Way Modal -->
+<div id="onTheWayModal" class="modal fade" role="dialog">
+    <div class="modal-dialog modal-md">
+        <!-- Modal content-->
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">
+                    <i class="fa fa-truck"></i> On the Way - Update Date
+                </h4>
+            </div>
+            <form id="on_the_way_form" action="javascript:;" method="post">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="control-label" for="way_date">
+                            <i class="fa fa-calendar-check-o"></i> Way Date
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-addon">
+                                <i class="fa fa-calendar"></i>
+                            </span>
+                            <input type="text" placeholder="dd-mm-yyyy" id="way_date" name="way_date" class="form-control defualt-date-picker" value="" required title="Select Way Date">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="control-label" for="estimated_arrival_date">
+                            <i class="fa fa-clock-o"></i> Estimated Arrival Date
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-addon">
+                                <i class="fa fa-calendar"></i>
+                            </span>
+                            <input type="text" placeholder="dd-mm-yyyy" id="estimated_arrival_date" name="estimated_arrival_date" class="form-control defualt-date-picker" value="" required title="Select Estimated Arrival Date">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="control-label" for="on_the_way_notes">
+                            <i class="fa fa-sticky-note-o"></i> Notes
+                        </label>
+                        <textarea id="on_the_way_notes" name="on_the_way_notes" class="form-control" rows="4" placeholder="Add any additional notes..."></textarea>
+                    </div>
+                    
+                    <input type="hidden" id="on_the_way_performa_invoice_id" name="performa_invoice_id" value="">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">
+                        <i class="fa fa-times"></i> Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fa fa-check"></i> Save
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Theme-based styling for On the Way modal */
+#onTheWayModal .modal-content {
+    overflow: hidden;
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+#onTheWayModal .modal-content.modal-show {
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+/* Use theme's primary color for icons and focus states */
+#onTheWayModal .control-label i {
+    margin-right: 8px;
+    color: inherit;
+}
+
+#onTheWayModal .form-control {
+    transition: all 0.3s ease;
+}
+
+#onTheWayModal .form-control:focus {
+    outline: none;
+    transform: translateY(-1px);
+}
+
+/* Input group styling using theme colors */
+#onTheWayModal .input-group-addon {
+    transition: all 0.3s ease;
+}
+
+#onTheWayModal .input-group.datepicker-open .input-group-addon {
+    background-color: rgba(0, 123, 255, 0.1);
+}
+
+#onTheWayModal .input-group .form-control:focus + .input-group-addon,
+#onTheWayModal .input-group.datepicker-open .input-group-addon {
+    background-color: rgba(0, 123, 255, 0.1);
+}
+
+#onTheWayModal textarea {
+    transition: all 0.3s ease;
+}
+
+#onTheWayModal textarea:focus {
+    outline: none;
+    transform: translateY(-1px);
+}
+
+/* Button enhancements using theme classes */
+#onTheWayModal .btn {
+    transition: all 0.3s ease;
+}
+
+#onTheWayModal .btn-primary:hover {
+    transform: translateY(-2px);
+}
+
+#onTheWayModal .btn-primary:active {
+    transform: translateY(0);
+}
+
+#onTheWayModal .btn-default:hover {
+    transform: translateY(-1px);
+}
+
+#onTheWayModal .control-label {
+    font-weight: 600;
+    margin-bottom: 8px;
+    display: block;
+    transition: color 0.3s ease;
+}
+
+#onTheWayModal .modal-header {
+    position: relative;
+}
+
+#onTheWayModal .modal-header .modal-title i {
+    margin-right: 10px;
+}
+
+#onTheWayModal .close {
+    transition: all 0.3s ease;
+}
+
+#onTheWayModal .close:hover {
+    opacity: 1 !important;
+    transform: rotate(90deg);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    #onTheWayModal .modal-dialog {
+        margin: 10px;
+    }
+    
+    #onTheWayModal .modal-body {
+        padding: 20px 15px;
+    }
+    
+    #onTheWayModal .modal-footer {
+        padding: 15px;
+    }
+}
+</style>
   
 
 <script>
+// Global helper function to safely block page - works even if block_page is not defined
+function safeBlock() {
+	if(typeof block_page === 'function') {
+		block_page();
+	} else if(typeof $.blockUI === 'function') {
+		$.blockUI({ css: {
+			border: 'none',
+			padding: '0px',
+			width: '17%',
+			left:'43%',
+			backgroundColor: '#000',
+			'-webkit-border-radius': '10px',
+			'-moz-border-radius': '10px',
+			opacity: .5,
+			color: '#fff',
+			zIndex: '10000'
+		},
+		message :  '<h3> Please wait...</h3>' });
+	}
+}
+
+// Global helper function to safely unblock page - works even if unblock_page is not defined
+function safeUnblock(type, msg) {
+	if(typeof unblock_page === 'function') {
+		unblock_page(type, msg);
+	} else if(typeof $.unblockUI === 'function') {
+		// Fallback to direct jQuery unblockUI
+		if(type !== "" && msg !== "") {
+			if(typeof toastr !== 'undefined') {
+				toastr[type](msg);
+			}
+		}
+		setTimeout(function(){ $.unblockUI(); }, 500);
+	} else {
+		// Last resort: just show message if toastr is available
+		if(typeof toastr !== 'undefined' && type !== "" && msg !== "") {
+			toastr[type](msg);
+		}
+	}
+}
+
 function company_wise_print(performa_invoice_id)
 {
-	block_page();
+	safeBlock();
 	 $.ajax({ 
            type: "POST", 
            url: root+'create_pi_loading/companywise_print',
@@ -217,15 +434,19 @@ function company_wise_print(performa_invoice_id)
 			});
 		 
 			$("#company_wise_html").html(data);
-				unblock_page('',"")
-           }
+				safeUnblock('',"")
+           },
+		   error: function(jqXHR, textStatus, errorThrown) {
+			   console.log('AJAX Error:', errorThrown);
+			   safeUnblock("error", "An error occurred. Please try again.");
+		   }
 	 });
 }
 
 
 function remaining_pi(performa_invoice_id)
 {
-	block_page();
+	safeBlock();
 	 $.ajax({ 
            type: "POST", 
            url: root+'create_pi_loading/remaining_pi',
@@ -242,15 +463,19 @@ function remaining_pi(performa_invoice_id)
 			});
 		 
 			$("#remaindata_wise_html").html(data);
-				unblock_page('',"")
-           }
+				safeUnblock('',"")
+           },
+		   error: function(jqXHR, textStatus, errorThrown) {
+			   console.log('AJAX Error:', errorThrown);
+			   safeUnblock("error", "An error occurred. Please try again.");
+		   }
 	 });
 }
 
 
 function export_wise_print(performa_invoice_id)
 {
-	block_page();
+	safeBlock();
 	 $.ajax({ 
            type: "POST", 
            url: root+'create_pi_loading/exportwise_print',
@@ -266,12 +491,124 @@ function export_wise_print(performa_invoice_id)
 				keyboard: false
 			});
 		  	$("#export_wise_html").html(data);
-				unblock_page('',"")
-           }
+				safeUnblock('',"")
+           },
+		   error: function(jqXHR, textStatus, errorThrown) {
+			   console.log('AJAX Error:', errorThrown);
+			   safeUnblock("error", "An error occurred. Please try again.");
+		   }
 	 });
 }
 $(".select2").select2({
 	width:"100%"
+});
+
+// Initialize date pickers (will be re-initialized when modal opens)
+$('.defualt-date-picker').datepicker({
+	autoclose: true,
+	format: 'dd-mm-yyyy'
+});
+
+// Function to open On the Way modal
+function open_on_the_way_modal(performa_invoice_id) {
+	// Set the invoice ID
+	$("#on_the_way_performa_invoice_id").val(performa_invoice_id);
+	
+	// Reset form
+	$("#on_the_way_form")[0].reset();
+	
+	// Initialize date pickers for modal fields with enhanced styling
+	$('#way_date, #estimated_arrival_date').datepicker({
+		autoclose: true,
+		format: 'dd-mm-yyyy',
+		orientation: 'bottom auto',
+		todayHighlight: true,
+		startDate: new Date()
+	}).on('show', function() {
+		$(this).closest('.input-group').addClass('datepicker-open');
+	}).on('hide', function() {
+		$(this).closest('.input-group').removeClass('datepicker-open');
+	});
+	
+	// Open modal with animation
+	$("#onTheWayModal").modal({
+		backdrop: 'static',
+		keyboard: false,
+		show: true
+	});
+	
+	// Add fade-in animation
+	setTimeout(function() {
+		$("#onTheWayModal .modal-content").addClass('modal-show');
+	}, 10);
+}
+
+// Handle On the Way form submission
+$("#on_the_way_form").submit(function(event) {
+	event.preventDefault();
+	
+	if(!$("#on_the_way_form").valid()) {
+		return false;
+	}
+	
+	// Get form data
+	var performa_invoice_id = $("#on_the_way_performa_invoice_id").val();
+	var way_date = $("#way_date").val();
+	var estimated_arrival_date = $("#estimated_arrival_date").val();
+	var on_the_way_notes = $("#on_the_way_notes").val();
+	
+	// TODO: Add your AJAX call here to save the data
+	// Example:
+	// safeBlock();
+	// $.ajax({
+	//     type: "POST",
+	//     url: root + 'your_controller/your_method',
+	//     data: {
+	//         "performa_invoice_id": performa_invoice_id,
+	//         "way_date": way_date,
+	//         "estimated_arrival_date": estimated_arrival_date,
+	//         "on_the_way_notes": on_the_way_notes
+	//     },
+	//     cache: false,
+	//     success: function(responseData) {
+	//         var obj = JSON.parse(responseData);
+	//         if(obj.res == 1) {
+	//             safeUnblock("success", "On the Way information saved successfully.");
+	//             $("#onTheWayModal").modal('hide');
+	//             $("#on_the_way_form")[0].reset();
+	//         } else {
+	//             safeUnblock("error", "Something went wrong. Please try again.");
+	//         }
+	//     },
+	//     error: function(jqXHR, textStatus, errorThrown) {
+	//         safeUnblock("error", "An error occurred. Please try again.");
+	//     }
+	// });
+	
+	// For now, just close the modal
+	alert("Form data:\nPerforma Invoice ID: " + performa_invoice_id + "\nWay Date: " + way_date + "\nEstimated Arrival Date: " + estimated_arrival_date + "\nNotes: " + on_the_way_notes);
+	$("#onTheWayModal").modal('hide');
+	$("#on_the_way_form")[0].reset();
+});
+
+// Add validation rules for On the Way form
+$("#on_the_way_form").validate({
+	rules: {
+		way_date: {
+			required: true
+		},
+		estimated_arrival_date: {
+			required: true
+		}
+	},
+	messages: {
+		way_date: {
+			required: "Please select Way Date"
+		},
+		estimated_arrival_date: {
+			required: "Please select Estimated Arrival Date"
+		}
+	}
 });
 //load_data_table()
 // function load_data_table()
