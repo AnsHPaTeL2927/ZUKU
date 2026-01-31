@@ -63,10 +63,25 @@ $this->view('lib/header');
 					 
 					if(isset($fd))
 					{
+						// If no customer data (New form or list), use defaults so form/modals don't error. Else show actual data.
+						if (!isset($fdv) || !$fdv) {
+							$fdv = new stdClass();
+							$fdv->id = 0; $fdv->c_companyname = ''; $fdv->customer_type = 1; $fdv->payment_type = 'Credit';
+							$fdv->auto_payment_remainder = 'Yes'; $fdv->rex_detail_status = '1'; $fdv->rex_no_detail = '';
+							$fdv->c_address = $fdv->c_postcode = $fdv->c_city = $fdv->c_state = $fdv->c_country = '';
+							$fdv->c_name = $fdv->c_nick_name = $fdv->shippment_days = $fdv->currency_id = '';
+							$fdv->c_registration_detail = $fdv->c_contact = $fdv->c_email_address = $fdv->c_web_address = '';
+							$fdv->port_of_discharge = $fdv->payment_terms = $fdv->credit_days = $fdv->credit_limit = '';
+							$fdv->agent_id = $fdv->forwarer_id = '';
+						}
+						if (!isset($getcustdata) || !$getcustdata) {
+							$getcustdata = new stdClass();
+							$getcustdata->id = 0;
+						}
 						$inc_img_name="";
 						$rex_no = !empty($company_detail[0]->rex_no)?$company_detail[0]->rex_no:"[Your REX No]";
 						$rex_detail = "The exporter ".$rex_no." of the products Covered by this document declares that, except where otherwise clearly indicated, these products are of India preferential origin according to rules of origin of the Generalized System of Preferences of the European Union and that the origin criterion met is P.";
-						if($fd == 'edit')
+						if($fd == 'edit' && isset($fdv->id))
 						{
 						 $img_name = $this->encrypt->encode($fdv->id); 
 						 $inc_img_name=str_replace(array('+', '/', '='), array('-', '_', '~'), $img_name);
@@ -628,16 +643,14 @@ $this->view('lib/header');
 				       <select class="select2" name="countryid" id="countryid" required title="Select Country">
 							<option value="">Select Country</option>	
 						 	<?php
-								for($c=0;$c<count($countrydata);$c++)
+								$countrydata_list = (isset($countrydata) && is_array($countrydata)) ? $countrydata : array();
+								for($c=0;$c<count($countrydata_list);$c++)
 								{
 									$select = '';
-							
-									if($countrydata[$c]->id==@$fdv->c_country)
-									{
-										$select = 'selected="selected"'; 
-									}
+									if(isset($countrydata_list[$c]->id) && $countrydata_list[$c]->id==@$fdv->c_country)
+										$select = 'selected="selected"';
 								?>
-								<option <?=$select?> value="<?=$countrydata[$c]->id?>"><?=$countrydata[$c]->c_name?></option>	
+								<option <?=$select?> value="<?=$countrydata_list[$c]->id?>"><?=htmlspecialchars($countrydata_list[$c]->c_name)?></option>	
 								<?php
 								}
 								?>
@@ -768,7 +781,7 @@ $this->view('lib/header');
         <div class="modal-content">
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal">&times;</button>
-                <h4 class="modal-title">Assign User <span><?=$cust_data->c_companyname?> </span> </h4>
+                <h4 class="modal-title">Assign User <span><?= (isset($cust_data) && $cust_data && isset($cust_data->c_companyname) && $cust_data->c_companyname !== '') ? htmlspecialchars($cust_data->c_companyname) : 'No customer found' ?> </span> </h4>
             </div>
 			 <form class="form-horizontal askform" action="javascript:;"  method="post" name="assign_user_form" id="assign_user_form">
 				<div class="modal-body">
@@ -798,7 +811,7 @@ $this->view('lib/header');
 				<button name="Submit" type="submit"  class="btn btn-info">Save</button>
                 <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
             </div>
-				<input type="hidden" name="customer_id1" id="customer_id1" value="<?=$cust_data->id?>" />
+				<input type="hidden" name="customer_id1" id="customer_id1" value="<?= (isset($cust_data) && $cust_data && isset($cust_data->id)) ? (int)$cust_data->id : 0 ?>" />
 			 </form>
         </div>
     </div>
@@ -811,7 +824,7 @@ $this->view('lib/header');
         <div class="modal-content">
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal">&times;</button>
-                <h4 class="modal-title">Assign Designs <span><?=$cust_data->c_companyname?> </span> </h4>
+                <h4 class="modal-title">Assign Designs <span><?= (isset($cust_data) && $cust_data && isset($cust_data->c_companyname) && $cust_data->c_companyname !== '') ? htmlspecialchars($cust_data->c_companyname) : 'No customer found' ?> </span> </h4>
             </div>
 			 <form class="form-horizontal askform" action="javascript:;"  method="post" name="assign_designs_form" id="assign_designs_form">
 				<div class="modal-body">
@@ -841,8 +854,8 @@ $this->view('lib/header');
 				<button name="Submit" type="submit"  class="btn btn-info">Save</button>
                 <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
             </div>
-				<input type="hidden" name="designid1" id="designid1"  value="<?=$design_data->packing_model_id?>" />
-<input type="hidden" name="customer_id1" id="customer_id1"  value="<?=$cust_data->id?>" />
+				<input type="hidden" name="designid1" id="designid1"  value="<?= (is_array($design_data) && isset($design_data[0]->packing_model_id)) ? (int)$design_data[0]->packing_model_id : (isset($design_data->packing_model_id) ? (int)$design_data->packing_model_id : 0) ?>" />
+				<input type="hidden" name="customer_id1" id="customer_id1"  value="<?= (isset($cust_data) && $cust_data && isset($cust_data->id)) ? (int)$cust_data->id : 0 ?>" />
 
 			 </form>
         </div>
@@ -1324,7 +1337,7 @@ function delete_record(id)
 }
 function delete_record_consign(id)
 {
-	 main_delete(id,'consigner/delete_record','customer_detail/form_edit/<?=$fdv->id?>')
+	 main_delete(id,'consigner/delete_record','customer_detail/form_edit/<?= isset($fdv) ? (int)$fdv->id : 0 ?>')
 }
 	load_data_table();
 function load_data_table()
@@ -1342,7 +1355,8 @@ function load_data_table()
 			"oLanguage": {
 					"sLengthMenu": "_MENU_",
 					"sProcessing": "<img src='"+root+"adminast/assets/images/loader.gif'/> Loading ...",
-					"sEmptyTable": "NO DATA ADDED YET !",
+					"sEmptyTable": "No customer created yet.",
+					"sZeroRecords": "No customer created yet.",
 					"sSearch": "",
 					"sInfoFiltered":"",
 					"sInfo":"",
@@ -1855,10 +1869,9 @@ function bank_data(id,bank_id)
 
 </script>
 <?php
-if($mode =="Edit")
+if($mode == "Edit" && isset($fdv) && $fdv)
 {
-	 
-	echo "<script>hide_limit('".$fdv->auto_payment_remainder."')</script>";
-	echo "<script>show_detail('".$fdv->rex_detail_status."')</script>";
+	echo "<script>hide_limit('".(isset($fdv->auto_payment_remainder) ? $fdv->auto_payment_remainder : '')."')</script>";
+	echo "<script>show_detail('".(isset($fdv->rex_detail_status) ? $fdv->rex_detail_status : '')."')</script>";
 }
 ?>

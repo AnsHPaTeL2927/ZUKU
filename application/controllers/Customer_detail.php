@@ -14,45 +14,44 @@ class Customer_detail extends CI_controller
 		}	
 	 	public function index($m="")
 		{
-			 
 			if(!empty($this->session->id)  && $this->session->title == TITLE)
 			{
-			 	$this->load->model('admin_company_detail');	
-				$data['bank_data']			= $this->sli->bank_select(); 
-				$data['cust_data']			= $this->sli->s_edit_select($id); 
-				$data['design_data']			= $this->sli->getdesigndata(); 
+			 	$this->load->model('admin_company_detail');
+				$this->load->model('admin_country_detail');
+				$data['bank_data']			= $this->sli->bank_select();
+				$data['cust_data']			= null;
+				$data['design_data']			= $this->sli->getdesigndata();
 				$data['forwarerdata']		= $this->sli->getforwarerdata();
-				$data['company_detail'] 	= $this->admin_company_detail->s_select();	
+				$data['company_detail'] 	= $this->admin_company_detail->s_select();
+				$data['countrydata'] 		= $this->admin_country_detail->s_select();
 				$data['agentname'] 			= $this->sli->agentdata();
 				$data['paymenttermsdata']	= $this->sli->getpaymenttermsdata();
 				$data['currencydata'] 		= $this->sli->getcurrencydata();
-				$data['company_data']	 	= $this->sli->getcompanydata();	
-				$data['getcustdata'] 		= $this->sli->get_customer($id);
+				$data['company_data']	 	= $this->sli->getcompanydata();
+				$data['getcustdata'] 		= null;
 				$data['mode'] 				= 'View';
-				$data['menu_data']	 		= $this->menu->usermain_menu($this->session->usertype_id);	
-			
+				$data['menu_data']	 		= $this->menu->usermain_menu($this->session->usertype_id);
+
 				$this->load->view('admin/customer_detail',$data);
 			}
 			else
 			{
 				$this->load->view('admin/index');
-			}				
+			}
 		}
+
 	public function fetch_record()
 	{
 		$companydata = $this->input->get('companydata');
-	
 		 $status = $this->input->get('status');
-		 
+
 		 if($status == 2)
-		 {
 			 $where = ' mst.status = 0';
-		 }
-		 else  if($status == 1)
-		 {
+		 else if($status == 1)
 			 $where = ' mst.status = 2';
-		 }
-		 
+		 else
+			 $where = ' 1=1 ';
+
 		// if(!empty($companydata))
 			// {
 				// $where .= ' and mst.id = '.$companydata;
@@ -76,14 +75,24 @@ class Customer_detail extends CI_controller
 						 );
 		 $hOrder = "status asc, mst.id desc";
 		$sqlReturn = $this->Pagging_model->get_datatables($aColumns,$table,$hOrder,$isJOIN,$isWhere,$this->input->get());
+			$rows = isset($sqlReturn['data']) && is_array($sqlReturn['data']) ? $sqlReturn['data'] : array();
 			$appData = array();
 			$no = ($this->input->get('iDisplayStart') + 1);
-			foreach($sqlReturn['data'] as $row) {
+			foreach($rows as $row) {
 				
-				$locale='en-US'; //browser or user locale
-				$currency=$row->currency_code; 
-				$fmt = new NumberFormatter( $locale."@currency=$currency", NumberFormatter::CURRENCY );
-				$currency_symbol = $fmt->getSymbol(NumberFormatter::CURRENCY_SYMBOL);
+				$locale = 'en-US';
+				$currency = isset($row->currency_code) ? $row->currency_code : 'USD';
+				$currency_symbol = $currency;
+				if (class_exists('NumberFormatter')) {
+					try {
+						$fmt = new NumberFormatter($locale . '@currency=' . $currency, NumberFormatter::CURRENCY);
+						$currency_symbol = $fmt->getSymbol(NumberFormatter::CURRENCY_SYMBOL);
+					} catch (Exception $e) {
+						$currency_symbol = ($currency === 'USD') ? '$' : $currency . ' ';
+					}
+				} else {
+					$currency_symbol = ($currency === 'USD') ? '$' : (($currency === 'EUR') ? '€' : $currency . ' ');
+				}
 				
 					if($row->customer_type == 1)
 					{
@@ -182,7 +191,7 @@ class Customer_detail extends CI_controller
 					$no++;
 				 }
 			$totalrecord = $this->Pagging_model->count_all($aColumns,$table,$hOrder,$isJOIN,$isWhere,'');
-			$numrecord=$sqlReturn['data'];
+			$numrecord = isset($sqlReturn['data']) ? $sqlReturn['data'] : array();
 			$output = array(
 					"sEcho" => intval($this->input->get('sEcho')),
 					"iTotalRecords" =>  $numrecord,
@@ -493,38 +502,39 @@ class Customer_detail extends CI_controller
 	}
 
 	public function form()
-	{
-		if(!empty($this->session->id)  && $this->session->title == TITLE)
 		{
-			$forwarer_id = $this->input->post('forwarer_id');
-			$data['forwarername'] = is_array($forwarer_id) ? implode(",", $forwarer_id) : (is_string($forwarer_id) ? $forwarer_id : '');
-			$data['fd']	= 'manage';
-			$this->load->model('admin_company_detail');	
-			$data['company_detail'] = $this->admin_company_detail->s_select();
-			//country Data
-			$this->load->model('admin_country_detail');
-			$data['countrydata'] = $this->admin_country_detail->s_select();
-			$this->load->model('Payment_terms_model');
-			$data['paymenttermsdata']	= $this->Payment_terms_model->get_payment_terms_data();	
-			
-			$this->load->model('Agentmaster_model');
-			$data['agentname']	= $this->Agentmaster_model->showagent_records1();	
-			//$data['getcustdata'] 		= $this->sli->get_customer($id);
-			$this->load->model('Forwarer_master_model');
-			$data['forwarerdata']	= $this->Forwarer_master_model->supplier_select();	
-			$data['company_data']	 	= $this->sli->getcompanydata();	
-			$data['mode'] = 'New';
-			$data['currencydata'] = $this->sli->getcurrencydata();
-			$data['menu_data']	 	= $this->menu->usermain_menu($this->session->usertype_id);	
-						
-			$this->load->view('admin/customer_detail',$data);
-		}
-		else
-		{
-			$this->load->view('admin/index');
-		}	
+			if(!empty($this->session->id)  && $this->session->title == TITLE)
+			{
+				$forwarer_id = $this->input->post('forwarer_id');
+				$data['forwarername'] = is_array($forwarer_id) ? implode(",", $forwarer_id) : (is_string($forwarer_id) ? $forwarer_id : '');
+				$data['fd']	= 'manage';
+				$this->load->model('admin_company_detail');
+				$this->load->model('admin_country_detail');
+				$data['company_detail'] = $this->admin_company_detail->s_select();
+				$data['countrydata'] = $this->admin_country_detail->s_select();
+				$this->load->model('Payment_terms_model');
+				$data['paymenttermsdata']	= $this->Payment_terms_model->get_payment_terms_data();
 
-	}
+				$this->load->model('Agentmaster_model');
+				$data['agentname']	= $this->Agentmaster_model->showagent_records1();
+				$this->load->model('Forwarer_master_model');
+				$data['forwarerdata']	= $this->Forwarer_master_model->supplier_select();
+				$data['company_data']	 	= $this->sli->getcompanydata();
+				$data['design_data']	 	= $this->sli->getdesigndata();
+				$data['fdv']	 		= null;
+				$data['cust_data']	 	= null;
+				$data['getcustdata']	 	= null;
+				$data['mode'] = 'New';
+				$data['currencydata'] = $this->sli->getcurrencydata();
+				$data['menu_data']	 	= $this->menu->usermain_menu($this->session->usertype_id);
+
+				$this->load->view('admin/customer_detail',$data);
+			}
+			else
+			{
+				$this->load->view('admin/index');
+			}
+		}
 		private function set_upload_options()
 		{   
 			//upload an image options
