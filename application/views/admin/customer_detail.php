@@ -567,6 +567,7 @@ $this->view('lib/header');
 													<th>Email</th>
 													<th>Country</th>
 													<th>Opening Balance</th>
+													<th>Warehouse</th>
 													<th>Action</th>
 												</tr>
 											</thead>
@@ -612,6 +613,79 @@ $this->view('lib/header');
                 <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
             </div>
 			</form>
+        </div>
+    </div>
+</div>
+
+<div id="create_warehouse_modal" class="modal fade" role="dialog">
+    <div class="modal-dialog" style="width: 98%; max-width: 1400px;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">Create Warehouse</h4>
+            </div>
+            <form action="javascript:;" method="post" name="create_warehouse_form" id="create_warehouse_form">
+                <div class="modal-body" style="max-height: 65vh; overflow-y: auto;">
+                    <input type="hidden" id="create_warehouse_customer_id" name="customer_id" value="" />
+                    <div class="row" style="margin-bottom:6px;">
+                        <div class="col-xs-3"><label class="control-label" style="font-size:12px;">Warehouse Number</label></div>
+                        <div class="col-xs-3"><label class="control-label" style="font-size:12px;">Warehouse Country</label></div>
+                        <div class="col-xs-3"><label class="control-label" style="font-size:12px;">Warehouse Name</label></div>
+                        <div class="col-xs-2"><label class="control-label" style="font-size:12px;">Address</label></div>
+                        <div class="col-xs-1"></div>
+                    </div>
+                    <div id="warehouse_rows">
+                        <div class="warehouse-row panel panel-default" style="padding:6px 10px; margin-bottom:6px;">
+                            <div class="row">
+                                <div class="col-xs-3">
+                                    <div class="form-group" style="margin-bottom:0;">
+                                        <input type="text" name="warehouse_number[]" class="form-control input-sm" placeholder="Number" required />
+                                    </div>
+                                </div>
+                                <div class="col-xs-3">
+                                    <div class="form-group" style="margin-bottom:0;">
+                                        <select name="warehouse_country[]" class="form-control input-sm select2 warehouse_country" required title="Select Country">
+                                            <option value="">Select Country</option>
+                                            <?php
+                                            $countrydata_list = (isset($countrydata) && is_array($countrydata)) ? $countrydata : array();
+                                            foreach($countrydata_list as $c) {
+                                                if(isset($c->id) && isset($c->c_name)) {
+                                                    echo '<option value="'.(int)$c->id.'">'.htmlspecialchars($c->c_name).'</option>';
+                                                }
+                                            }
+                                            ?>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-xs-3">
+                                    <div class="form-group" style="margin-bottom:0;">
+                                        <input type="text" name="warehouse_name[]" class="form-control input-sm" placeholder="Name" required />
+                                    </div>
+                                </div>
+                                <div class="col-xs-2">
+                                    <div class="form-group" style="margin-bottom:0;">
+                                        <textarea name="warehouse_address[]" class="form-control input-sm warehouse-address" rows="2" placeholder="Address" required style="resize: vertical; min-height: 38px;"></textarea>
+                                    </div>
+                                </div>
+                                <div class="col-xs-1 text-right">
+                                    <button type="button" class="btn btn-danger btn-sm btn-remove-warehouse" onclick="remove_warehouse_row(this)" title="Remove warehouse" style="margin-top:0;">
+                                        <i class="fa fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0; margin-top:4px;">
+                        <button type="button" class="btn btn-default btn-sm" onclick="add_warehouse_row()" title="Add another warehouse">
+                            <i class="fa fa-plus"></i> Add Warehouse
+                        </button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-info">Submit</button>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -1289,6 +1363,41 @@ function opening_balance_modal(val)
 	$("#myModal_opening_balance").modal('show')
 }
 
+function open_create_warehouse_modal(customer_id) {
+	$("#create_warehouse_customer_id").val(customer_id);
+	// Reset to single warehouse row (keep first, remove clones)
+	$("#warehouse_rows .warehouse-row").not(":first").remove();
+	$("#warehouse_rows .warehouse-row:first").find('input, textarea, select').val('');
+	$("#create_warehouse_modal").modal('show');
+	if ($(".select2").length) {
+		$("#create_warehouse_modal .warehouse_country").select2({ width: '100%' });
+	}
+}
+
+function add_warehouse_row() {
+	var $first = $("#warehouse_rows .warehouse-row:first");
+	var $clone = $first.clone();
+	// Remove Select2-generated markup from clone so we don't get two country dropdowns
+	$clone.find('.select2-container').remove();
+	$clone.find('select.warehouse_country').removeClass('select2-hidden-accessible').removeAttr('aria-hidden tabindex').show().css({ width: '', visibility: '', position: '' });
+	$clone.find('input, textarea').val('');
+	$clone.find('select').val('');
+	$clone.appendTo("#warehouse_rows");
+	$clone.find('.warehouse_country').select2({ width: '100%' });
+	update_warehouse_delete_buttons();
+}
+function remove_warehouse_row(btn) {
+	var $row = $(btn).closest('.warehouse-row');
+	if ($("#warehouse_rows .warehouse-row").length > 1) {
+		$row.remove();
+		update_warehouse_delete_buttons();
+	}
+}
+function update_warehouse_delete_buttons() {
+	var n = $("#warehouse_rows .warehouse-row").length;
+	$("#warehouse_rows .btn-remove-warehouse").prop('disabled', n <= 1).css('opacity', n <= 1 ? 0.5 : 1);
+}
+
 function load_balance(val)
 {
  	if(val == 2)
@@ -1376,7 +1485,8 @@ function load_data_table()
 					"sInfo":"",
 			},
 			"createdRow": function(row, data, dataIndex ) {
-			if(data[8].indexOf('Unarchive') != -1)
+			var actionCol = data[9];
+			if (typeof actionCol === 'string' && actionCol.indexOf('Unarchive') != -1)
 			{
 				$('td', row).css('background-color', '#CDCDCD');
 			}
@@ -1677,6 +1787,41 @@ $("#opening_balance_form").submit(function(event) {
             error: function(jqXHR, textStatus, errorThrown) {
                 console.log(errorThrown);
             }
+	});
+});
+
+$("#create_warehouse_form").submit(function(event) {
+	event.preventDefault();
+	if (!$("#create_warehouse_form")[0].checkValidity()) {
+		$("#create_warehouse_form")[0].reportValidity();
+		return false;
+	}
+	safeBlock();
+	var postData = new FormData(this);
+	$.ajax({
+		type: "post",
+		url: root + 'customer_detail/save_warehouses',
+		data: postData,
+		processData: false,
+		contentType: false,
+		cache: false,
+		success: function(responseData) {
+			try {
+				var obj = typeof responseData === 'string' ? JSON.parse(responseData) : responseData;
+				if (obj.res == 1) {
+					safeUnblock("success", "Warehouse(s) saved successfully.");
+					$("#create_warehouse_modal").modal('hide');
+					setTimeout(function(){ location.reload(); }, 1500);
+				} else {
+					safeUnblock("error", obj.msg || "Something went wrong.");
+				}
+			} catch (e) {
+				safeUnblock("error", "Invalid response.");
+			}
+		},
+		error: function() {
+			safeUnblock("error", "Request failed. Implement customer_detail/save_warehouses in controller.");
+		}
 	});
 });
 

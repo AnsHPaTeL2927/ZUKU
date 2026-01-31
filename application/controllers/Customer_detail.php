@@ -63,7 +63,7 @@ class Customer_detail extends CI_controller
 			// }
 		 
 		 $this->load->model('Pagging_model');//call module 
-		 $aColumns = array('mst.id','agent_id','forwarer_id','customer_type','c_companyname','mst.c_name','c_nick_name','c_contact','c_email_address' ,'mst.opening_balance','con_detail.c_name as country_name','currency.currency_code','(SELECT count(*) FROM `tbl_performa_invoice` where consigne_id = mst.id) as total_cnt','mst.bank_id','mst.status');
+		 $aColumns = array('mst.id','agent_id','forwarer_id','customer_type','c_companyname','mst.c_name','c_nick_name','c_contact','c_email_address' ,'mst.opening_balance','con_detail.c_name as country_name','currency.currency_code','(SELECT count(*) FROM `tbl_performa_invoice` where consigne_id = mst.id) as total_cnt','(SELECT COUNT(*) FROM tbl_warehouse_master WHERE customer_id = mst.id) as warehouse_count','mst.bank_id','mst.status');
 		 $isWhere = array($where);
 		 $table = "customer_detail as mst";
 		 $isJOIN = array(
@@ -115,6 +115,7 @@ class Customer_detail extends CI_controller
 					$row_data[] = $row->c_email_address;
 					$row_data[] = $row->country_name;
 					$row_data[] = $currency_symbol.' '.$row->opening_balance.' '.$balance_status;
+					$row_data[] = isset($row->warehouse_count) ? (int)$row->warehouse_count : 0;
 					$actionbtn = '';
 					$delete_btn = '';
 					
@@ -139,6 +140,9 @@ class Customer_detail extends CI_controller
 									
 									<li>
 										<a class="tooltips" data-title="Add Opening Balance" href="javascript:;" onclick="opening_balance_modal('.$row->id.')"><i class="fa fa-money"></i> Opening Balance</a>
+									</li>
+									<li>
+										<a class="tooltips" data-title="Warehouse" href="'.base_url().'customer_detail/warehouse_list/'.$row->id.'"><i class="fa fa-building fa-fw"></i> Warehouse</a>
 									</li>
 									<li>
 										<a class="tooltips" data-title="Edit" href="'.base_url().'customer_detail/form_edit/'.$row->id.'"><i class="fa fa-pencil"></i> Edit</a>
@@ -201,6 +205,35 @@ class Customer_detail extends CI_controller
 				echo json_encode( $output );
 	}
 	
+	public function warehouse_list($customer_id)
+	{
+		if (!empty($this->session->id) && $this->session->title == TITLE)
+		{
+			$customer_id = (int) $customer_id;
+			$cust_data = $this->sli->s_edit_select($customer_id);
+			if (!$cust_data) {
+				$this->session->set_flashdata('error', 'Customer not found.');
+				redirect('customer_detail');
+			}
+			$this->db->select('w.id, w.warehouse_number, w.name, w.address, w.country, w.created_at, c.c_name as country_name');
+			$this->db->from('tbl_warehouse_master w');
+			$this->db->join('country_detail c', 'c.id = w.country', 'left');
+			$this->db->where('w.customer_id', $customer_id);
+			$this->db->order_by('w.id', 'ASC');
+			$data['warehouses'] = $this->db->get()->result();
+			$this->load->model('admin_country_detail');
+			$data['countrydata'] = $this->admin_country_detail->s_select();
+			$data['cust_data'] = $cust_data;
+			$data['customer_id'] = $customer_id;
+			$data['menu_data'] = $this->menu->usermain_menu($this->session->usertype_id);
+			$this->load->view('admin/customer_warehouse_list', $data);
+		}
+		else
+		{
+			$this->load->view('admin/index');
+		}
+	}
+
 	public function product_detail($id)
 	{
 		if(!empty($this->session->id)  && $this->session->title == TITLE)
@@ -535,6 +568,206 @@ class Customer_detail extends CI_controller
 				$this->load->view('admin/index');
 			}
 		}
+		/**
+		 * Check if a warehouse with same number and name exists for customer. Returns true if duplicate.
+		 * @param int $customer_id
+		 * @param string $warehouse_number
+		 * @param string $name
+		 * @param int|null $exclude_id  When updating, exclude this warehouse id
+		 */
+		private function _warehouse_duplicate_exists($customer_id, $warehouse_number, $name, $exclude_id = null)
+		{
+			$this->db->select('id')->from('tbl_warehouse_master');
+			$this->db->where('customer_id', (int) $customer_id);
+			$this->db->where('warehouse_number', trim($warehouse_number));
+			$this->db->where('name', trim($name));
+			if ($exclude_id !== null) {
+				$this->db->where('id !=', (int) $exclude_id);
+			}
+			return $this->db->get()->num_rows() > 0;
+		}
+
+		/**
+		 * Validate warehouse row (create/update). Returns error message or empty string.
+		 */
+		private function _validate_warehouse_row($warehouse_number, $name, $address, $country, $require_country = true)
+		{
+			$warehouse_number = trim($warehouse_number);
+			$name = trim($name);
+			$address = trim($address);
+			if (strlen($warehouse_number) === 0) {
+				return 'Warehouse Number is required.';
+			}
+			if (strlen($warehouse_number) > 100) {
+				return 'Warehouse Number must not exceed 100 characters.';
+			}
+			if (strlen($name) === 0) {
+				return 'Warehouse Name is required.';
+			}
+			if (strlen($name) > 255) {
+				return 'Warehouse Name must not exceed 255 characters.';
+			}
+			if (strlen($address) === 0) {
+				return 'Address is required.';
+			}
+			if ($require_country && (empty($country) || (int)$country <= 0)) {
+				return 'Country is required.';
+			}
+			return '';
+		}
+
+		/**
+		 * Create Warehouse form submit (AJAX). Inserts into tbl_warehouse_master.
+		 */
+		public function save_warehouses()
+		{
+			if (empty($this->session->id)) {
+				echo json_encode(array('res' => 0, 'msg' => 'Unauthorized.'));
+				return;
+			}
+			$customer_id = (int) $this->input->post('customer_id');
+			$warehouse_number = $this->input->post('warehouse_number');
+			$warehouse_name = $this->input->post('warehouse_name');
+			$warehouse_country = $this->input->post('warehouse_country');
+			$warehouse_address = $this->input->post('warehouse_address');
+			if (!$customer_id || !is_array($warehouse_number) || !is_array($warehouse_name) || !is_array($warehouse_address) || !is_array($warehouse_country)) {
+				echo json_encode(array('res' => 0, 'msg' => 'Invalid data.'));
+				return;
+			}
+			$created_at = date('Y-m-d H:i:s');
+			$created_by = (int) $this->session->id;
+			$inserted = 0;
+			$seen_in_request = array();
+			for ($i = 0; $i < count($warehouse_number); $i++) {
+				$num = isset($warehouse_number[$i]) ? trim($warehouse_number[$i]) : '';
+				$name = isset($warehouse_name[$i]) ? trim($warehouse_name[$i]) : '';
+				$addr = isset($warehouse_address[$i]) ? trim($warehouse_address[$i]) : '';
+				$country = isset($warehouse_country[$i]) ? (int) $warehouse_country[$i] : 0;
+				if ($num === '' && $name === '' && $addr === '') continue;
+				$err = $this->_validate_warehouse_row($num, $name, $addr, $country, true);
+				if ($err !== '') {
+					echo json_encode(array('res' => 0, 'msg' => 'Row ' . ($i + 1) . ': ' . $err));
+					return;
+				}
+				$key = $num . '|' . $name;
+				if (isset($seen_in_request[$key])) {
+					echo json_encode(array('res' => 0, 'msg' => 'Row ' . ($i + 1) . ': A warehouse with this number and name is already in the list.'));
+					return;
+				}
+				if ($this->_warehouse_duplicate_exists($customer_id, $num, $name, null)) {
+					echo json_encode(array('res' => 0, 'msg' => 'Row ' . ($i + 1) . ': A warehouse with this number and name already exists for this customer.'));
+					return;
+				}
+				$seen_in_request[$key] = true;
+				$data = array(
+					'customer_id' => $customer_id,
+					'warehouse_number' => $num,
+					'name' => $name,
+					'address' => $addr,
+					'country' => $country ? $country : null,
+					'created_at' => $created_at,
+					'created_by' => $created_by
+				);
+				if ($this->db->insert('tbl_warehouse_master', $data)) {
+					$inserted++;
+				}
+			}
+			if ($inserted > 0) {
+				echo json_encode(array('res' => 1, 'msg' => $inserted . ' warehouse(s) created.'));
+			} else {
+				echo json_encode(array('res' => 0, 'msg' => 'Please fill at least one warehouse row with all required fields.'));
+			}
+		}
+
+		/**
+		 * Get one warehouse by id (for edit form). Returns JSON.
+		 */
+		public function get_warehouse()
+		{
+			$id = (int) $this->input->get_post('id');
+			if (!$id) {
+				echo json_encode(array('res' => 0, 'msg' => 'Invalid id.'));
+				return;
+			}
+			$row = $this->db->select('id, customer_id, warehouse_number, name, address, country')->from('tbl_warehouse_master')->where('id', $id)->get()->row();
+			if (!$row) {
+				echo json_encode(array('res' => 0, 'msg' => 'Warehouse not found.'));
+				return;
+			}
+			header('Content-Type: application/json');
+			echo json_encode(array('res' => 1, 'data' => $row));
+		}
+
+		/**
+		 * Update warehouse (AJAX). POST: id, customer_id, warehouse_number, name, address, country.
+		 */
+		public function update_warehouse()
+		{
+			if (empty($this->session->id)) {
+				echo json_encode(array('res' => 0, 'msg' => 'Unauthorized.'));
+				return;
+			}
+			$id = (int) $this->input->post('id');
+			$customer_id = (int) $this->input->post('customer_id');
+			$warehouse_number = trim($this->input->post('warehouse_number'));
+			$name = trim($this->input->post('name'));
+			$address = trim($this->input->post('address'));
+			$country = (int) $this->input->post('country');
+			if (!$id || !$customer_id) {
+				echo json_encode(array('res' => 0, 'msg' => 'Invalid data.'));
+				return;
+			}
+			$err = $this->_validate_warehouse_row($warehouse_number, $name, $address, $country, false);
+			if ($err !== '') {
+				echo json_encode(array('res' => 0, 'msg' => $err));
+				return;
+			}
+			if ($this->_warehouse_duplicate_exists($customer_id, $warehouse_number, $name, $id)) {
+				echo json_encode(array('res' => 0, 'msg' => 'A warehouse with this number and name already exists for this customer.'));
+				return;
+			}
+			$this->db->where('id', $id);
+			$this->db->where('customer_id', $customer_id);
+			$this->db->update('tbl_warehouse_master', array(
+				'warehouse_number' => $warehouse_number,
+				'name' => $name,
+				'address' => $address,
+				'country' => $country ? $country : null
+			));
+			if ($this->db->affected_rows() > 0) {
+				echo json_encode(array('res' => 1, 'msg' => 'Warehouse updated.'));
+			} else {
+				echo json_encode(array('res' => 0, 'msg' => 'Warehouse not found or no change.'));
+			}
+		}
+
+		/**
+		 * Delete warehouse (AJAX). POST: id, customer_id (optional, for security).
+		 */
+		public function delete_warehouse()
+		{
+			if (empty($this->session->id)) {
+				echo json_encode(array('res' => 0, 'msg' => 'Unauthorized.'));
+				return;
+			}
+			$id = (int) $this->input->post('id');
+			$customer_id = $this->input->post('customer_id') !== null ? (int) $this->input->post('customer_id') : null;
+			if (!$id) {
+				echo json_encode(array('res' => 0, 'msg' => 'Invalid id.'));
+				return;
+			}
+			$this->db->where('id', $id);
+			if ($customer_id) {
+				$this->db->where('customer_id', $customer_id);
+			}
+			$this->db->delete('tbl_warehouse_master');
+			if ($this->db->affected_rows() > 0) {
+				echo json_encode(array('res' => 1, 'msg' => 'Warehouse deleted.'));
+			} else {
+				echo json_encode(array('res' => 0, 'msg' => 'Warehouse not found or already deleted.'));
+			}
+		}
+
 		private function set_upload_options()
 		{   
 			//upload an image options
