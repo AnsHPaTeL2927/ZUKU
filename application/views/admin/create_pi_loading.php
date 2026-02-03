@@ -746,7 +746,7 @@
 <script>
 function set_auto_loading_plan(performa_invoice_id)
 {
-	block_page();
+	safeBlock();
 	 $.ajax({ 
            type: "POST", 
            url: root+'create_pi_loading/set_auto_loading_plan',
@@ -756,7 +756,7 @@ function set_auto_loading_plan(performa_invoice_id)
            cache: false, 
            success: function (data) { 
 				location.reload();
-				unblock_page('',"")
+				safeUnblock('',"")
            }
 	 });
 }
@@ -771,7 +771,7 @@ function change_full_status(autometic_loading_plan_id)
 		confirmButtonText: 'Yes, Do it!'
 	}).then((result) => {
 		 if (result.value) {
-			block_page();
+			safeBlock();
 			  $.ajax({ 
               type: "POST", 
               url: root+'create_pi_loading/change_full_status',
@@ -783,11 +783,11 @@ function change_full_status(autometic_loading_plan_id)
 				var obj = JSON.parse(data);
 				if(obj.res==1)
 				{
-				 	unblock_page('success',"Record Update Successfully");
+				 	safeUnblock('success',"Record Update Successfully");
 					location.reload();
 				}
                 else{
-					unblock_page('error',"Somthing Wrong.")
+					safeUnblock('error',"Somthing Wrong.")
 				}
               }
 			});
@@ -813,6 +813,44 @@ if(!empty($setcontainer))
 }
 ?>
 <script>
+// Global helper function to safely block page - works even if block_page is not defined (e.g. when footer not loaded)
+function safeBlock() {
+	if(typeof block_page === 'function') {
+		block_page();
+	} else if(typeof $.blockUI === 'function') {
+		$.blockUI({ css: {
+			border: 'none',
+			padding: '0px',
+			width: '17%',
+			left:'43%',
+			backgroundColor: '#000',
+			'-webkit-border-radius': '10px',
+			'-moz-border-radius': '10px',
+			opacity: .5,
+			color: '#fff',
+			zIndex: '10000'
+		},
+		message :  '<h3> Please wait...</h3>' });
+	}
+}
+
+// Global helper function to safely unblock page - works even if unblock_page is not defined
+function safeUnblock(type, msg) {
+	if(typeof unblock_page === 'function') {
+		unblock_page(type, msg);
+	} else if(typeof $.unblockUI === 'function') {
+		if(type !== "" && msg !== "") {
+			if(typeof toastr !== 'undefined') {
+				toastr[type](msg);
+			}
+		}
+		setTimeout(function(){ $.unblockUI(); }, 500);
+	} else {
+		if(typeof toastr !== 'undefined' && type !== "" && msg !== "") {
+			toastr[type](msg);
+		}
+	}
+}
 
 var used_container = <?=$setcontainer?>;
 var pending_container = parseFloat(<?=$invoicedata->container_details?>) - <?=$setcontainer?>;
@@ -835,11 +873,11 @@ function copy_containter(production_mst_id,company_name,supplier_id,container)
 		});
 	 	if(production_trn_id == "" || production_trn_id == null)
 		{
-			unblock_page('error',"Please select atlest 1 design");
+			safeUnblock('error',"Please select atlest 1 design");
 			return false;
 		}
 	 
-	 block_page();
+	 safeBlock();
 	 
 	$.ajax({ 
              type: "POST", 
@@ -863,7 +901,7 @@ function copy_containter(production_mst_id,company_name,supplier_id,container)
 					$("#mode").val('add');
 					$("#set_container_detail").html(data);
 					 
-					unblock_page('',"")
+					safeUnblock('',"")
              }
 			});
 }
@@ -885,11 +923,11 @@ function copy_multiple_containter()
 	 
 	 if(production_trn_id == "" || production_trn_id == null)
 	 {
-		 unblock_page('error',"Please select atlest 1 design");
+		 safeUnblock('error',"Please select atlest 1 design");
 		 return false;
 	 }
 	  
-	 block_page();
+	 safeBlock();
 	 
 	$.ajax({ 
              type: "POST", 
@@ -909,7 +947,7 @@ function copy_multiple_containter()
 					$("#mode").val('add');
 					$("#set_container_detail").html(data);
 					 
-					unblock_page('',"")
+					safeUnblock('',"")
              }
 			});
 }
@@ -920,7 +958,7 @@ $("#wallproduct_form").submit(function(event) {
 		return false;
 	}
  	 
-	block_page();
+	safeBlock();
 	var postData= new FormData(this);
 	$.ajax({
             type: "post",
@@ -935,7 +973,7 @@ $("#wallproduct_form").submit(function(event) {
 				$(".loader").hide();
 				 
 				   $("#product_form").trigger('reset');
-				    unblock_page("success","Sucessfully Inserted.");
+				    safeUnblock("success","Sucessfully Inserted.");
 					setTimeout(function(){ location.reload(); },1000);
 		    },
             error: function(jqXHR, textStatus, errorThrown) {
@@ -946,7 +984,7 @@ $("#wallproduct_form").submit(function(event) {
 
 function set_one_by_one_container(container_no)
 {
-	block_page();
+	safeBlock();
 	var performa_packing_id 				= [];
 	var production_mst_id 					= [];
 	var supplier_id		 					= [];
@@ -1051,7 +1089,7 @@ function set_one_by_one_container(container_no)
 				$(".loader").hide();
 				 
 				   $("#product_form").trigger('reset');
-				    unblock_page("success","Sucessfully Inserted.");
+				    safeUnblock("success","Sucessfully Inserted.");
 					setTimeout(function(){ location.reload(); },1000);
 		    },
             error: function(jqXHR, textStatus, errorThrown) {
@@ -1074,7 +1112,7 @@ function all_checked(check,supplier_id)
 function set_all_containter(performa_invoice_id)
 {
 	 
-	block_page();
+	safeBlock();
 	var all_container = $("#all_container").val().split(",");
 	
 	 
@@ -1140,7 +1178,7 @@ function set_all_containter(performa_invoice_id)
              cache: false, 
              success: function (data)
 			 { 
-					unblock_page("success","Sucessfully Inserted.");
+					safeUnblock("success","Sucessfully Inserted.");
 					 setTimeout(function(){ location.reload(); },1000);
 					 
              }
@@ -1161,10 +1199,10 @@ function make_pallet(con_entry,performa_invoice_id,supplier_id,piloading_plan_id
 	 
 	 if(pi_loading_plan_id == "" || pi_loading_plan_id == null)
 	 {
-		 unblock_page('error',"Please select atlest 1 design");
+		 safeUnblock('error',"Please select atlest 1 design");
 		 return false;
 	 }
-	 block_page();
+	 safeBlock();
 	$.ajax({ 
              type: "POST", 
              url: root+'create_pi_loading/make_pallet',
@@ -1178,7 +1216,7 @@ function make_pallet(con_entry,performa_invoice_id,supplier_id,piloading_plan_id
              success: function (data)
 			 { 
 					edit_loading(con_entry,performa_invoice_id,supplier_id);
-					unblock_page("","");
+					safeUnblock("","");
              }
 			}); 
 		  
@@ -1186,7 +1224,7 @@ function make_pallet(con_entry,performa_invoice_id,supplier_id,piloading_plan_id
 function delete_pallet(con_entry,performa_invoice_id,supplier_id,pallet_ids)
 {
 	 
-	 block_page();
+	 safeBlock();
 	$.ajax({ 
              type: "POST", 
              url: root+'create_pi_loading/delete_pallet',
@@ -1198,7 +1236,7 @@ function delete_pallet(con_entry,performa_invoice_id,supplier_id,pallet_ids)
              success: function (data)
 			 { 
 					edit_loading(con_entry,performa_invoice_id,supplier_id);
-					unblock_page("","");
+					safeUnblock("","");
              }
 			}); 
 		  
@@ -1212,7 +1250,7 @@ function close_modal()
 
 function company_wise_print(performa_invoice_id)
 {
-	block_page();
+	safeBlock();
 	 $.ajax({ 
            type: "POST", 
            url: root+'create_pi_loading/companywise_print',
@@ -1228,7 +1266,7 @@ function company_wise_print(performa_invoice_id)
 			});
 		 
 			$("#company_wise_html").html(data);
-				unblock_page('',"")
+				safeUnblock('',"")
            }
 	 });
 }
@@ -1359,7 +1397,7 @@ function delete_loading(con_entry,performa_invoice_id)
   confirmButtonText: 'Yes, confirm it!'
 }).then((result) => {
 		 if (result.value) {
-			block_page();
+			safeBlock();
 			  $.ajax({ 
               type: "POST", 
               url: root+'create_pi_loading/deleteloading',
@@ -1372,11 +1410,11 @@ function delete_loading(con_entry,performa_invoice_id)
 				var obj = JSON.parse(data);
 				if(obj.res==1)
 				{
-				 	unblock_page('success',"Producation Sucessfully deleted.");
+				 	safeUnblock('success',"Producation Sucessfully deleted.");
 						setTimeout(function(){ location.reload(); },1000); 
 				}
                 else{
-					unblock_page('error',"Somthing Wrong.")
+					safeUnblock('error',"Somthing Wrong.")
 				}
               }
 			});
@@ -1385,7 +1423,7 @@ function delete_loading(con_entry,performa_invoice_id)
 }
 function edit_loading(con_entry,performa_invoice_id,supplier_id)
 {
-	block_page();
+	safeBlock();
 			  $.ajax({ 
               type: "POST", 
               url: root+'create_pi_loading/editloading',
@@ -1408,7 +1446,7 @@ function edit_loading(con_entry,performa_invoice_id,supplier_id)
 					   
 					$("#supplier_id").val(supplier_id);
 					$("#set_container_detail").html(obj.html);
-						unblock_page('',"")
+						safeUnblock('',"")
               }
 			});
 		 

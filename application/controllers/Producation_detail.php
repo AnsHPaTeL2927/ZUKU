@@ -348,6 +348,10 @@ public function mark_master_done()
 public function get_container_data()
 {
     $id = $this->input->post('production_mst_id');
+    if (empty($id)) {
+        echo '<div class="alert alert-warning">Production ID is required.</div>';
+        return;
+    }
 
    $this->db->select('
     trn.*, 
@@ -356,10 +360,9 @@ public function get_container_data()
     f.finish_name, 
     pro.size_type_mm, 
     ptrn.sqm_per_box, 
-    trn.boxes_per_pallet as trnboxes_per_pallet, 
-    trn.box_per_big_pallet as trnbox_per_big_pallet, 
-    trn.box_per_small_pallet as trnbox_per_small_pallet, 
-   
+    ptrn.boxes_per_pallet as trnboxes_per_pallet, 
+    ptrn.box_per_big_pallet as trnbox_per_big_pallet, 
+    ptrn.box_per_small_pallet as trnbox_per_small_pallet, 
     ptrn.boxes_per_pallet, 
     ptrn.box_per_big_pallet, 
     ptrn.box_per_small_pallet

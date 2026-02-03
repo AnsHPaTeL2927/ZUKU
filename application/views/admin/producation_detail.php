@@ -378,7 +378,7 @@ function mark_master_production_done(mst_id)
         data: { production_mst_id: mst_id },
         success: function(res){
             $("#productionModal").modal("hide");
-            customer_report_new();
+            load_data();
         }
     });
 }
@@ -397,7 +397,7 @@ function confirm_final_production(production_id)
         success: function(data){
             $("#productionModal").modal("hide");
             alert("Production marked as DONE!");
-            customer_report_new(); // reload datatable
+            load_data();
         }
     });
 }
@@ -408,19 +408,35 @@ function open_production_popup(production_id)
     $("#production_modal_body").html("Loading...");
     $("#productionModal").modal("show");
 
+    // Store production_mst_id on button so final_production_done can use it if AJAX fails
+    $("#final_production_btn").attr("data-mstid", production_id);
+    $("#final_production_btn").attr("onclick", "final_production_done()");
+
     $.ajax({
         url: root + "producation_detail/get_container_data",
         type: "POST",
         data: { production_mst_id: production_id },
         success: function(res){
             $("#production_modal_body").html(res);
-
-            // attach id dynamically to final production button
-            $("#final_production_btn").attr("onclick",
-                "confirm_final_production("+production_id+")"
+            $("#final_production_btn").attr("onclick", "confirm_final_production("+production_id+")");
+        },
+        error: function(xhr) {
+            $("#production_modal_body").html(
+                '<div class="alert alert-danger">Failed to load container data. ' +
+                (xhr.status === 500 ? 'Server error. Please try again or contact support.' : 'Error: ' + xhr.status) + '</div>'
             );
         }
     });
+}
+
+function final_production_done()
+{
+    var mstId = $("#final_production_btn").attr("data-mstid");
+    if (mstId) {
+        confirm_final_production(mstId);
+    } else {
+        alert("Production ID not found. Please close and reopen the popup.");
+    }
 }
 
 
