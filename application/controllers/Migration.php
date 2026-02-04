@@ -147,6 +147,37 @@ class Migration extends CI_Controller {
         echo '<p><a href="' . base_url() . '">Go to Home</a></p>';
     }
 
+    /**
+     * Run only the tbl_warehouse_inventory migration (creates the table).
+     * Use this if the full migration index fails due to other migrations.
+     */
+    public function run_warehouse_inventory()
+    {
+        $this->load->database();
+        $this->load->library('migration'); // defines CI_Migration and loads dbforge
+        $this->load->dbforge();
+
+        $migration_file = APPPATH . 'migrations/20260201120000_create_tbl_warehouse_inventory.php';
+        if (!is_file($migration_file)) {
+            show_error('Warehouse inventory migration file not found.');
+        }
+
+        include_once($migration_file);
+        if (!class_exists('Migration_Create_tbl_warehouse_inventory', FALSE)) {
+            show_error('Warehouse inventory migration class not found.');
+        }
+
+        $migration = new Migration_Create_tbl_warehouse_inventory();
+        $migration->up();
+
+        // Update migrations table so index/latest won't re-run this
+        $this->db->update('migrations', array('version' => '20260201120000'));
+
+        echo '<h1>Warehouse inventory migration completed successfully!</h1>';
+        echo '<p>Table tbl_warehouse_inventory has been created.</p>';
+        echo '<p><a href="' . base_url() . '">Go to Home</a></p>';
+    }
+
     public function remove_from_performa_invoice()
     {
         // Remove fields from tbl_performa_invoice (they were added by mistake)

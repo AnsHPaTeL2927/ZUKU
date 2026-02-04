@@ -517,4 +517,384 @@ class Assign_producation extends CI_controller
 		
 		echo json_encode($row);
 	}
+
+	public function get_warehouses()
+	{
+		$performa_invoice_id = $this->input->post('performa_invoice_id');
+		
+		$response = array();
+		
+		if(empty($performa_invoice_id))
+		{
+			echo json_encode($response);
+			return;
+		}
+		
+		// Get customer_id (consigne_id) from performa invoice
+		$this->db->select('consigne_id');
+		$this->db->from('tbl_performa_invoice');
+		$this->db->where('performa_invoice_id', $performa_invoice_id);
+		$pi_query = $this->db->get();
+		$pi_result = $pi_query->row();
+		
+		if(empty($pi_result) || empty($pi_result->consigne_id))
+		{
+			echo json_encode($response);
+			return;
+		}
+		
+		$customer_id = $pi_result->consigne_id;
+		
+		// Fetch warehouses linked to this customer
+		$this->db->select('w.id, w.warehouse_number, w.name, w.address, w.country, c.c_name as country_name');
+		$this->db->from('tbl_warehouse_master w');
+		$this->db->join('country_detail c', 'c.id = w.country', 'left');
+		$this->db->where('w.customer_id', $customer_id);
+		$this->db->order_by('w.name', 'ASC');
+		$query = $this->db->get();
+		$warehouses = $query->result();
+		
+		if (!empty($warehouses)) {
+			foreach ($warehouses as $warehouse) {
+				$response[] = array(
+					'id' => $warehouse->id,
+					'warehouse_number' => $warehouse->warehouse_number,
+					'name' => $warehouse->name,
+					'address' => $warehouse->address,
+					'country' => $warehouse->country_name ? $warehouse->country_name : ''
+				);
+			}
+		}
+		
+		echo json_encode($response);
+	}
+
+	public function get_designs()
+	{
+		if(!empty($this->session->id) && $this->session->title == TITLE)
+		{
+			$performa_invoice_id = $this->input->post('performa_invoice_id');
+			
+			$response = array();
+			
+			if(empty($performa_invoice_id))
+			{
+				echo json_encode($response);
+				return;
+			}
+			
+			try {
+				// Get unique design names from loading plan (which links to both performa invoice and production sheet)
+				// This ensures we get designs that are actually in the loading plan, not just the original order
+				$sql = "SELECT DISTINCT model.packing_model_id, model.model_name 
+						FROM tbl_pi_loading_plan as loading
+						INNER JOIN tbl_performa_packing as packing ON packing.performa_packing_id = loading.performa_packing_id
+						INNER JOIN tbl_packing_model as model ON model.packing_model_id = packing.design_id
+						WHERE loading.performa_invoice_id = ? 
+						AND packing.design_id > 0 
+						AND model.model_name IS NOT NULL 
+						AND model.model_name != ''
+						AND (
+							loading.origanal_boxes > 0 
+							OR loading.origanal_pallet > 0 
+							OR loading.orginal_no_of_big_pallet > 0 
+							OR loading.orginal_no_of_small_pallet > 0
+							OR loading.origanal_sqm > 0
+						)
+						ORDER BY model.model_name ASC";
+				
+				$query = $this->db->query($sql, array($performa_invoice_id));
+				$designs = $query->result();
+				
+				if (!empty($designs)) {
+					foreach ($designs as $design) {
+						if (!empty($design->model_name)) {
+							$response[] = array(
+								'id' => $design->packing_model_id,
+								'name' => $design->model_name
+							);
+						}
+					}
+				}
+			} catch(Exception $e) {
+				// Log error and return empty array
+				log_message('error', 'Error in get_designs: ' . $e->getMessage());
+				$response = array();
+			}
+			
+			echo json_encode($response);
+		}
+		else
+		{
+			echo json_encode(array());
+		}
+	}
+
+	public function save_inventory()
+	{
+		if(!empty($this->session->id) && $this->session->title == TITLE)
+		{
+			$performa_invoice_id = $this->input->post('performa_invoice_id');
+			$warehouse_data = $this->input->post('warehouse_data'); // JSON string
+			
+			$row = array();
+			
+			// Validate performa_invoice_id
+			$performa_invoice_id = intval($performa_invoice_id);
+			if(empty($performa_invoice_id))
+			{
+				$row['res'] = 0;
+				$row['msg'] = "Performa Invoice ID is required";
+				echo json_encode($row);
+				return;
+			}
+			
+			// Validate performa invoice exists
+			if(!$this->validate_performa_invoice($performa_invoice_id))
+			{
+				$row['res'] = 0;
+				$row['msg'] = "Invalid Performa Invoice ID";
+				echo json_encode($row);
+				return;
+			}
+			
+			if(empty($warehouse_data))
+			{
+				$row['res'] = 0;
+				$row['msg'] = "Warehouse data is required";
+				echo json_encode($row);
+				return;
+			}
+			
+			// Decode JSON data
+			$warehouses = json_decode($warehouse_data, true);
+			
+			// Check for JSON decode errors
+			if(json_last_error() !== JSON_ERROR_NONE)
+			{
+				$row['res'] = 0;
+				$row['msg'] = "Invalid warehouse data format: " . json_last_error_msg();
+				echo json_encode($row);
+				return;
+			}
+			
+			if(empty($warehouses) || !is_array($warehouses))
+			{
+				$row['res'] = 0;
+				$row['msg'] = "Invalid warehouse data format";
+				echo json_encode($row);
+				return;
+			}
+			
+			$this->load->model('Admin_pdf', 'pinv');
+			
+			$success_count = 0;
+			$error_count = 0;
+			
+			// Process each warehouse
+			foreach($warehouses as $warehouse)
+			{
+				$warehouse_id = isset($warehouse['warehouse_id']) ? intval($warehouse['warehouse_id']) : 0;
+				$design_ids = isset($warehouse['designs']) && is_array($warehouse['designs']) ? $warehouse['designs'] : array();
+				$notes = isset($warehouse['notes']) ? trim($warehouse['notes']) : '';
+				
+				if(empty($warehouse_id) || empty($design_ids))
+				{
+					$error_count++;
+					continue;
+				}
+				
+				// Process each design for this warehouse
+				foreach($design_ids as $design_id)
+				{
+					$design_id = intval($design_id);
+					if(empty($design_id))
+					{
+						$error_count++;
+						continue;
+					}
+					
+					// Check if this inventory entry already exists (prevent duplicates)
+					$existing = $this->check_existing_inventory($performa_invoice_id, $warehouse_id, $design_id);
+					if($existing)
+					{
+						// Skip if already exists - don't count as error, just skip
+						continue;
+					}
+					
+					// Validate warehouse exists
+					if(!$this->validate_warehouse($warehouse_id))
+					{
+						$error_count++;
+						continue;
+					}
+					
+					// Validate design exists
+					if(!$this->validate_design($design_id))
+					{
+						$error_count++;
+						continue;
+					}
+					
+					// Get quantity from loading plan for this design
+					$quantity = $this->get_design_quantity_from_loading_plan($performa_invoice_id, $design_id);
+					
+					// Get first loading plan ID for this design (optional)
+					$pi_loading_plan_id = $this->get_first_loading_plan_id($performa_invoice_id, $design_id);
+					
+					// Sanitize notes to prevent XSS
+					$sanitized_notes = !empty($notes) ? $this->security->xss_clean($notes) : NULL;
+					
+					// Prepare data for insertion
+					$data = array(
+						'performa_invoice_id' => $performa_invoice_id,
+						'pi_loading_plan_id' => !empty($pi_loading_plan_id) ? $pi_loading_plan_id : NULL,
+						'design_id' => $design_id,
+						'warehouse_id' => $warehouse_id,
+						'quantity' => $quantity,
+						'notes' => $sanitized_notes,
+						'created_by' => $this->session->id,
+						'created_at' => date('Y-m-d H:i:s'),
+						'updated_at' => date('Y-m-d H:i:s')
+					);
+					
+					// Insert into database
+					$insert_result = $this->pinv->insert_warehouse_inventory($data);
+					
+					if($insert_result)
+					{
+						$success_count++;
+					}
+					else
+					{
+						$error_count++;
+					}
+				}
+			}
+			
+			if($success_count > 0)
+			{
+				$row['res'] = 1;
+				$row['msg'] = "Inventory saved successfully. " . $success_count . " record(s) added.";
+				if($error_count > 0)
+				{
+					$row['msg'] .= " " . $error_count . " record(s) failed.";
+				}
+			}
+			else
+			{
+				$row['res'] = 0;
+				$row['msg'] = "Failed to save inventory data. Please try again.";
+			}
+			
+			echo json_encode($row);
+		}
+		else
+		{
+			$row = array();
+			$row['res'] = 0;
+			$row['msg'] = "Unauthorized access";
+			echo json_encode($row);
+		}
+	}
+	
+	private function get_design_quantity_from_loading_plan($performa_invoice_id, $design_id)
+	{
+		// Get total quantity (boxes) for this design from loading plan
+		$this->db->select_sum('origanal_boxes');
+		$this->db->from('tbl_pi_loading_plan as loading');
+		$this->db->join('tbl_performa_packing as packing', 'packing.performa_packing_id = loading.performa_packing_id', 'inner');
+		$this->db->where('loading.performa_invoice_id', $performa_invoice_id);
+		$this->db->where('packing.design_id', $design_id);
+		$this->db->where('loading.origanal_boxes >', 0);
+		
+		$query = $this->db->get();
+		$result = $query->row();
+		
+		$quantity = !empty($result->origanal_boxes) ? floatval($result->origanal_boxes) : 0;
+		
+		// If no boxes, try to get SQM
+		if($quantity == 0)
+		{
+			$this->db->select_sum('origanal_sqm');
+			$this->db->from('tbl_pi_loading_plan as loading');
+			$this->db->join('tbl_performa_packing as packing', 'packing.performa_packing_id = loading.performa_packing_id', 'inner');
+			$this->db->where('loading.performa_invoice_id', $performa_invoice_id);
+			$this->db->where('packing.design_id', $design_id);
+			$this->db->where('loading.origanal_sqm >', 0);
+			
+			$query = $this->db->get();
+			$result = $query->row();
+			
+			$quantity = !empty($result->origanal_sqm) ? floatval($result->origanal_sqm) : 0;
+		}
+		
+		return $quantity;
+	}
+	
+	private function get_first_loading_plan_id($performa_invoice_id, $design_id)
+	{
+		// Get first loading plan ID for this design (optional reference)
+		$this->db->select('loading.pi_loading_plan_id');
+		$this->db->from('tbl_pi_loading_plan as loading');
+		$this->db->join('tbl_performa_packing as packing', 'packing.performa_packing_id = loading.performa_packing_id', 'inner');
+		$this->db->where('loading.performa_invoice_id', $performa_invoice_id);
+		$this->db->where('packing.design_id', $design_id);
+		$this->db->limit(1);
+		
+		$query = $this->db->get();
+		$result = $query->row();
+		
+		return !empty($result->pi_loading_plan_id) ? intval($result->pi_loading_plan_id) : NULL;
+	}
+	
+	private function check_existing_inventory($performa_invoice_id, $warehouse_id, $design_id)
+	{
+		// Check if inventory entry already exists for this combination
+		$this->db->select('id');
+		$this->db->from('tbl_warehouse_inventory');
+		$this->db->where('performa_invoice_id', $performa_invoice_id);
+		$this->db->where('warehouse_id', $warehouse_id);
+		$this->db->where('design_id', $design_id);
+		$this->db->limit(1);
+		
+		$query = $this->db->get();
+		return $query->num_rows() > 0;
+	}
+	
+	private function validate_warehouse($warehouse_id)
+	{
+		// Check if warehouse exists
+		$this->db->select('id');
+		$this->db->from('tbl_warehouse_master');
+		$this->db->where('id', $warehouse_id);
+		$this->db->limit(1);
+		
+		$query = $this->db->get();
+		return $query->num_rows() > 0;
+	}
+	
+	private function validate_design($design_id)
+	{
+		// Check if design exists
+		$this->db->select('packing_model_id');
+		$this->db->from('tbl_packing_model');
+		$this->db->where('packing_model_id', $design_id);
+		$this->db->limit(1);
+		
+		$query = $this->db->get();
+		return $query->num_rows() > 0;
+	}
+	
+	private function validate_performa_invoice($performa_invoice_id)
+	{
+		// Check if performa invoice exists
+		$this->db->select('performa_invoice_id');
+		$this->db->from('tbl_performa_invoice');
+		$this->db->where('performa_invoice_id', $performa_invoice_id);
+		$this->db->limit(1);
+		
+		$query = $this->db->get();
+		return $query->num_rows() > 0;
+	}
 }

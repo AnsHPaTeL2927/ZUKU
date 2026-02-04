@@ -1311,6 +1311,12 @@ public function loading_data($performa_invoice_id,$supplier_id,$export_time)
 
 	}
 
+	public function insert_warehouse_inventory($data)
+	{
+		$this->db->insert('tbl_warehouse_inventory', $data);
+		return $this->db->insert_id();
+	}
+
 	public function update_exportcointainer($con_entry,$performa_invoice_id,$data)
 
 	{

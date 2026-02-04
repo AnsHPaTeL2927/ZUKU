@@ -259,57 +259,29 @@ $this->view('lib/footer');
 
 <!-- Add to Inventory Modal -->
 <div id="addToInventoryModal" class="modal fade" role="dialog">
-    <div class="modal-dialog modal-md">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content add-to-inventory-modal">
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal">&times;</button>
                 <h4 class="modal-title">Add to Inventory</h4>
             </div>
-            <form id="add_to_inventory_form" action="javascript:;" method="post">
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label class="control-label" for="inventory_warehouse">
-                            <strong>Select Warehouse</strong>
-                        </label>
-                        <div class="radio-group" style="margin-top: 10px;">
-                            <label class="radio-inline" style="margin-right: 20px;">
-                                <input type="radio" name="inventory_warehouse" value="Warehouse1"> Warehouse1
-                            </label>
-                            <label class="radio-inline" style="margin-right: 20px;">
-                                <input type="radio" name="inventory_warehouse" value="Warehouse2"> Warehouse2
-                            </label>
-                            <label class="radio-inline">
-                                <input type="radio" name="inventory_warehouse" value="Warehouse3" checked> Warehouse3
-                            </label>
+            <div class="modal-body">
+                <div id="warehouse_forms_container">
+                    <!-- Forms will be dynamically generated here -->
+                </div>
+                <div id="design_preview_container" style="margin-top: 20px; display: none;">
+                    <div class="panel panel-info">
+                        <div class="panel-heading">
+                            <strong><i class="fa fa-eye"></i> Selected Designs Preview</strong>
+                        </div>
+                        <div class="panel-body" id="design_preview_content">
+                            <!-- Preview will be dynamically generated here -->
                         </div>
                     </div>
-                    
-                    <div class="form-group">
-                        <label class="control-label" for="inventory_date">
-                            <strong>Inventory Date</strong>
-                        </label>
-                        <div class="input-group">
-                            <span class="input-group-addon">
-                                <i class="fa fa-calendar"></i>
-                            </span>
-                            <input type="text" placeholder="dd-mm-yyyy" id="inventory_date" name="inventory_date" class="form-control inventory-date-picker" value="">
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="control-label" for="inventory_notes">
-                            <strong>Notes (Optional)</strong>
-                        </label>
-                        <textarea id="inventory_notes" name="inventory_notes" class="form-control" rows="4" placeholder="Add any notes about this inventory addition..."></textarea>
-                    </div>
-                    
-                    <input type="hidden" id="add_to_inventory_performa_invoice_id" name="performa_invoice_id" value="">
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Add to Inventory</button>
-                </div>
-            </form>
+                <input type="hidden" id="add_to_inventory_performa_invoice_id" value="">
+                <input type="hidden" id="current_warehouse_index" value="0">
+            </div>
         </div>
     </div>
 </div>
@@ -850,32 +822,350 @@ $.validator.addMethod("dateFormat", function(value, element) {
 // Function to open Add to Inventory modal
 function open_add_to_inventory_modal(performa_invoice_id) {
 	$("#add_to_inventory_performa_invoice_id").val(performa_invoice_id);
-	$("#add_to_inventory_form")[0].reset();
-	$("input[name='inventory_warehouse'][value='Warehouse3']").prop("checked", true);
+	$("#warehouse_forms_container").empty();
+	$("#current_warehouse_index").val(0);
+	$("#design_preview_container").hide();
+	$("#design_preview_content").empty();
 	
-	$('#inventory_date').datepicker({
-		autoclose: true,
-		format: 'dd-mm-yyyy',
-		orientation: 'bottom auto',
-		todayHighlight: true
-	});
+	// Block page while fetching warehouses and designs
+	safeBlock();
 	
-	$("#addToInventoryModal").modal({
-		backdrop: 'static',
-		keyboard: false,
-		show: true
+	// Reset global variables
+	window.allDesigns = [];
+	window.selectedDesignsMap = {}; // warehouse_id -> array of design IDs
+	
+	// Fetch both warehouses and designs
+		
+		$.when(
+		$.ajax({
+			type: "POST",
+			url: root + 'assign_producation/get_warehouses',
+			data: { "performa_invoice_id": performa_invoice_id },
+			cache: false
+		}),
+		$.ajax({
+			type: "POST",
+			url: root + 'assign_producation/get_designs',
+			data: { "performa_invoice_id": performa_invoice_id },
+			cache: false
+		})
+	).done(function(warehousesResponse, designsResponse) {
+		try {
+			// Parse JSON responses - handle both string and already parsed responses
+			var warehouses = typeof warehousesResponse[0] === 'string' ? JSON.parse(warehousesResponse[0]) : warehousesResponse[0];
+			var designs = typeof designsResponse[0] === 'string' ? JSON.parse(designsResponse[0]) : designsResponse[0];
+			
+			// Validate responses
+			if (!Array.isArray(warehouses)) {
+				safeUnblock("error", "Invalid warehouses data received. Please try again.");
+				return;
+			}
+			
+			if (!Array.isArray(designs)) {
+				safeUnblock("error", "Invalid designs data received. Please try again.");
+				return;
+			}
+			
+			// Store all designs globally
+			window.allDesigns = designs || [];
+			
+			if (!warehouses || warehouses.length === 0) {
+				safeUnblock("warning", "No warehouses found for this customer. Please add warehouses in customer details.");
+				$("#addToInventoryModal").modal({
+					backdrop: 'static',
+					keyboard: false,
+					show: true
+				});
+				return;
+			}
+			
+			// Initialize selected designs map for each warehouse
+			$.each(warehouses, function(index, warehouse) {
+				window.selectedDesignsMap[warehouse.id] = [];
+			});
+			
+			// Create a form for each warehouse
+			$.each(warehouses, function(index, warehouse) {
+				var isLast = (index === warehouses.length - 1);
+				var displayText = warehouse.name;
+				if (warehouse.warehouse_number) {
+					displayText = warehouse.warehouse_number + ' - ' + displayText;
+				}
+				if (warehouse.country) {
+					displayText += ' (' + warehouse.country + ')';
+				}
+				
+				var formHtml = '<form class="warehouse-form" data-warehouse-id="' + warehouse.id + '" data-warehouse-index="' + index + '" data-warehouse-name="' + displayText.replace(/'/g, "&#39;") + '" style="display: ' + (index === 0 ? 'block' : 'none') + ';">';
+				formHtml += '<div class="panel panel-default">';
+				formHtml += '<div class="panel-heading"><strong>Warehouse: ' + displayText + '</strong></div>';
+				formHtml += '<div class="panel-body">';
+				formHtml += '<div class="form-group">';
+				formHtml += '<label class="control-label"><strong>Select Designs <span style="color: red;">*</span></strong></label>';
+				formHtml += '<select class="form-control design-multiselect" name="designs[]" multiple required style="min-height: 150px;" data-warehouse-id="' + warehouse.id + '">';
+				
+				// Populate with all available designs for first warehouse
+				if (window.allDesigns && window.allDesigns.length > 0 && index === 0) {
+					$.each(window.allDesigns, function(dIndex, design) {
+						formHtml += '<option value="' + design.id + '" data-design-name="' + design.name.replace(/'/g, "&#39;") + '">' + design.name + '</option>';
+					});
+				} else if (index > 0) {
+					// For subsequent warehouses, options will be populated dynamically
+					formHtml += '<option disabled>No designs available</option>';
+				} else {
+					formHtml += '<option disabled>No designs available for this order</option>';
+				}
+				
+				formHtml += '</select>';
+				formHtml += '<small class="help-block">Hold Ctrl (or Cmd on Mac) to select multiple designs</small>';
+				formHtml += '</div>';
+				formHtml += '<div class="form-group">';
+				formHtml += '<label class="control-label"><strong>Notes (Optional)</strong></label>';
+				formHtml += '<textarea class="form-control warehouse-notes" name="warehouse_notes" rows="3" placeholder="Add any notes about this warehouse inventory..." data-warehouse-id="' + warehouse.id + '"></textarea>';
+				formHtml += '</div>';
+				formHtml += '</div>';
+				formHtml += '<div class="panel-footer">';
+				
+				if (isLast) {
+					formHtml += '<button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>';
+					formHtml += '<button type="submit" class="btn btn-primary pull-right">Submit</button>';
+				} else {
+					formHtml += '<button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>';
+					formHtml += '<button type="button" class="btn btn-primary pull-right btn-next-warehouse">Next</button>';
+				}
+				
+				formHtml += '</div>';
+				formHtml += '</div>';
+				formHtml += '</form>';
+				
+				$("#warehouse_forms_container").append(formHtml);
+			});
+			
+			// Initialize preview
+			updateDesignPreview();
+			
+			// Unblock page
+			safeUnblock('', '');
+			
+			// Open modal
+			$("#addToInventoryModal").modal({
+				backdrop: 'static',
+				keyboard: false,
+				show: true
+			});
+		} catch(e) {
+			safeUnblock("error", "An error occurred while loading data. Please try again.");
+			console.log("Error parsing response: " + e);
+		}
+	}).fail(function(jqXHR, textStatus, errorThrown) {
+		safeUnblock("error", "An error occurred while loading data. Please try again.");
+		console.log("Error: " + textStatus + " - " + errorThrown);
 	});
 }
 
-// Handle Add to Inventory form submission (design only - no backend)
-$("#add_to_inventory_form").submit(function(event) {
+// Function to update design dropdowns based on selected designs
+function updateDesignDropdowns() {
+	var allSelectedDesignIds = [];
+	
+	// Collect all selected design IDs from all warehouses
+	$.each(window.selectedDesignsMap, function(warehouseId, designIds) {
+		allSelectedDesignIds = allSelectedDesignIds.concat(designIds);
+	});
+	
+	// Update each warehouse's dropdown
+	$('.design-multiselect').each(function() {
+		var $select = $(this);
+		var warehouseId = $select.data('warehouse-id');
+		var currentSelected = $select.val() || [];
+		
+		// Clear and repopulate dropdown
+		$select.empty();
+		
+		// Get available designs (not selected in other warehouses)
+		var availableDesigns = window.allDesigns.filter(function(design) {
+			// Include if not selected in other warehouses OR if selected in current warehouse
+			return allSelectedDesignIds.indexOf(design.id.toString()) === -1 || 
+				   currentSelected.indexOf(design.id.toString()) !== -1;
+		});
+		
+		if (availableDesigns.length > 0) {
+			$.each(availableDesigns, function(dIndex, design) {
+				var isSelected = currentSelected.indexOf(design.id.toString()) !== -1;
+				$select.append(
+					$('<option></option>')
+						.attr('value', design.id)
+						.attr('data-design-name', design.name)
+						.text(design.name)
+						.prop('selected', isSelected)
+				);
+			});
+		} else {
+			$select.append($('<option disabled>No designs available</option>'));
+		}
+	});
+}
+
+// Function to update design preview
+function updateDesignPreview() {
+	var hasSelections = false;
+	var previewHtml = '<div class="table-responsive"><table class="table table-bordered table-striped">';
+	previewHtml += '<thead><tr><th>Warehouse</th><th>Selected Designs</th></tr></thead><tbody>';
+	
+	$.each(window.selectedDesignsMap, function(warehouseId, designIds) {
+		if (designIds && designIds.length > 0) {
+			hasSelections = true;
+			var warehouseForm = $('.warehouse-form[data-warehouse-id="' + warehouseId + '"]');
+			var warehouseName = warehouseForm.data('warehouse-name') || 'Warehouse ' + warehouseId;
+			
+			var designNames = [];
+			$.each(designIds, function(index, designId) {
+				var design = window.allDesigns.find(function(d) {
+					return d.id.toString() === designId.toString();
+				});
+				if (design) {
+					designNames.push(design.name);
+				}
+			});
+			
+			previewHtml += '<tr>';
+			previewHtml += '<td><strong>' + warehouseName + '</strong></td>';
+			previewHtml += '<td>' + (designNames.length > 0 ? designNames.join(', ') : 'None') + '</td>';
+			previewHtml += '</tr>';
+		}
+	});
+	
+	previewHtml += '</tbody></table></div>';
+	
+	if (hasSelections) {
+		$("#design_preview_content").html(previewHtml);
+		$("#design_preview_container").show();
+	} else {
+		$("#design_preview_container").hide();
+	}
+}
+
+// Handle design selection change
+$(document).on('change', '.design-multiselect', function() {
+	var $select = $(this);
+	var warehouseId = $select.data('warehouse-id');
+	var selectedDesigns = $select.val() || [];
+	
+	// Update selected designs map
+	window.selectedDesignsMap[warehouseId] = selectedDesigns;
+	
+	// Update all dropdowns to reflect available designs
+	updateDesignDropdowns();
+	
+	// Update preview
+	updateDesignPreview();
+});
+
+// Handle Next button click - move to next warehouse form
+$(document).on('click', '.btn-next-warehouse', function() {
+	var currentForm = $(this).closest('.warehouse-form');
+	var currentIndex = parseInt(currentForm.data('warehouse-index'));
+	var nextForm = $('.warehouse-form[data-warehouse-index="' + (currentIndex + 1) + '"]');
+	
+	// Validate current form
+	if (!currentForm[0].checkValidity()) {
+		currentForm[0].reportValidity();
+		return false;
+	}
+	
+	// Get selected designs from current form
+	var currentWarehouseId = currentForm.data('warehouse-id');
+	var currentSelected = currentForm.find('.design-multiselect').val() || [];
+	window.selectedDesignsMap[currentWarehouseId] = currentSelected;
+	
+	// Update dropdowns before showing next form
+	updateDesignDropdowns();
+	
+	// Hide current form and show next
+	currentForm.hide();
+	nextForm.show();
+	$("#current_warehouse_index").val(currentIndex + 1);
+	
+	// Update preview
+	updateDesignPreview();
+});
+
+// Handle warehouse form submission
+$(document).on('submit', '.warehouse-form', function(event) {
 	event.preventDefault();
-	var warehouse = $("input[name='inventory_warehouse']:checked").val();
-	var inventory_date = $("#inventory_date").val();
-	var notes = $("#inventory_notes").val();
-	// Design only: just close modal
-	$("#addToInventoryModal").modal('hide');
-	$("#add_to_inventory_form")[0].reset();
+	
+	var form = $(this);
+	if (!form[0].checkValidity()) {
+		form[0].reportValidity();
+		return false;
+	}
+	
+	var warehouse_id = form.data('warehouse-id');
+	var selected_designs = form.find('.design-multiselect').val();
+	var performa_invoice_id = $("#add_to_inventory_performa_invoice_id").val();
+	
+	if (!selected_designs || selected_designs.length === 0) {
+		// Don't call safeUnblock here as safeBlock hasn't been called yet
+		alert("Please select at least one design.");
+		return false;
+	}
+	
+	// Collect all warehouse data
+	var allWarehouseData = [];
+	$('.warehouse-form').each(function() {
+		var wForm = $(this);
+		var wId = wForm.data('warehouse-id');
+		var wDesigns = wForm.find('.design-multiselect').val();
+		var wNotes = wForm.find('.warehouse-notes').val() || '';
+		if (wDesigns && wDesigns.length > 0) {
+			allWarehouseData.push({
+				warehouse_id: wId,
+				designs: wDesigns,
+				notes: wNotes
+			});
+		}
+	});
+	
+	if (allWarehouseData.length === 0) {
+		safeUnblock("error", "Please select at least one design in at least one warehouse.");
+		return false;
+	}
+	
+	// Save inventory data to backend
+	safeBlock();
+	
+	$.ajax({
+		type: "POST",
+		url: root + 'assign_producation/save_inventory',
+		data: {
+			"performa_invoice_id": performa_invoice_id,
+			"warehouse_data": JSON.stringify(allWarehouseData)
+		},
+		cache: false,
+		success: function(responseData) {
+			try {
+				var obj = JSON.parse(responseData);
+				if(obj.res == 1) {
+					safeUnblock("success", obj.msg || "Inventory data saved successfully.");
+					$("#addToInventoryModal").modal('hide');
+					$("#warehouse_forms_container").empty();
+					$("#design_preview_container").hide();
+					$("#design_preview_content").empty();
+					// Reload page after 1 second to reflect changes
+					setTimeout(function() {
+						window.location.reload();
+					}, 1000);
+				} else {
+					safeUnblock("error", obj.msg || "Something went wrong. Please try again.");
+				}
+			} catch(e) {
+				safeUnblock("error", "An error occurred while processing the response. Please try again.");
+				console.log("Error parsing response: " + e);
+			}
+		},
+		error: function(jqXHR, textStatus, errorThrown) {
+			safeUnblock("error", "An error occurred. Please try again.");
+			console.log("Error: " + textStatus + " - " + errorThrown);
+		}
+	});
 });
 //load_data_table()
 // function load_data_table()
