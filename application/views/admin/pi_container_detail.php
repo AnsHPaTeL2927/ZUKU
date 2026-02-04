@@ -460,6 +460,42 @@ function view_pdf(no)
 
 
 <script>
+// Global helper function to safely block page - works even if block_page is not defined (e.g. when footer not loaded)
+function safeBlock() {
+	if(typeof block_page === 'function') {
+		block_page();
+	} else if(typeof $.blockUI === 'function') {
+		$.blockUI({ css: {
+			border: 'none',
+			padding: '0px',
+			width: '17%',
+			left:'43%',
+			backgroundColor: '#000',
+			'-webkit-border-radius': '10px',
+			'-moz-border-radius': '10px',
+			opacity: .5,
+			color: '#fff',
+			zIndex: '10000'
+		},
+		message :  '<h3> Please wait...</h3>' });
+	}
+}
+
+// Global helper function to safely unblock page - works even if unblock_page is not defined
+function safeUnblock(type, msg) {
+	if(typeof unblock_page === 'function') {
+		unblock_page(type, msg);
+	} else if(typeof $.unblockUI === 'function') {
+		// Fallback to direct jQuery unblockUI
+		if(type !== "" && msg !== "") {
+			if(typeof toastr !== 'undefined') {
+				toastr[type](msg);
+			}
+		}
+		setTimeout($.unblockUI, 500);
+	}
+}
+
 function clearAllInputs() {
     if(confirm("Are you sure you want to clear all fields?")) {
         const table = document.getElementById("tt");
@@ -473,7 +509,7 @@ function clearAllInputs() {
 }
 function edit_loading(con_entry,performa_invoice_id,supplier_id)
 {
-	 block_page();
+	 safeBlock();
 			  $.ajax({ 
               type: "POST", 
               url: root+'create_pi_loading/editloading',
@@ -503,7 +539,7 @@ function edit_loading(con_entry,performa_invoice_id,supplier_id)
 				 	  $("#new_container_size").val(obj.container_size)
 				 	  $("#new_container").val(obj.container)
 				 	  $("#new_conentry").val(obj.con_entry);
-					unblock_page('',"")
+					safeUnblock('',"")
               }
 			});
 		 
@@ -523,10 +559,10 @@ function make_pallet(con_entry,performa_invoice_id,supplier_id,piloading_plan_id
 	 
 	 if(pi_loading_plan_id == "" || pi_loading_plan_id == null)
 	 {
-		 unblock_page('error',"Please select atlest 1 design");
+		 safeUnblock('error',"Please select atlest 1 design");
 		 return false;
 	 }
-	 block_page();
+	 safeBlock();
 	$.ajax({ 
              type: "POST", 
              url: root+'create_pi_loading/make_pallet',
@@ -540,7 +576,7 @@ function make_pallet(con_entry,performa_invoice_id,supplier_id,piloading_plan_id
              success: function (data)
 			 { 
 					edit_loading(con_entry,performa_invoice_id,supplier_id);
-					unblock_page("","");
+					safeUnblock("","");
              }
 			}); 
 		  
@@ -556,7 +592,7 @@ function delete_pallet(con_entry,performa_invoice_id,supplier_id,piloading_plan_
   confirmButtonText: 'Yes, confirm it!'
 }).then((result) => {
 		 if (result.value) {
-	 block_page();
+	 safeBlock();
 	$.ajax({ 
              type: "POST", 
              url: root+'create_pi_loading/delete_pallet',
@@ -568,7 +604,7 @@ function delete_pallet(con_entry,performa_invoice_id,supplier_id,piloading_plan_
              success: function (data)
 			 { 
 					edit_loading(con_entry,performa_invoice_id,supplier_id);
-					unblock_page("","");
+					safeUnblock("","");
              }
 			}); 
 		 }
@@ -622,7 +658,7 @@ $("#container_detail_form").submit(function(event) {
             }  
         }  
 	 	  
-	block_page();
+	safeBlock();
 	var postData= new FormData(this);
 	 
 	$.ajax({
@@ -639,13 +675,13 @@ $("#container_detail_form").submit(function(event) {
 			   if(obj.res==1)
 			   {
 				   $("#product_form").trigger('reset');
-				    unblock_page("success","Packing Detail Sucessfully Added.");
+				    safeUnblock("success","Packing Detail Sucessfully Added.");
 					//setTimeout(function(){ location.reload(); },1500);
 				  	setTimeout(function(){ window.location=root+'ready_for_export' },1000);
 				}
 			   else
 			   {
-				    unblock_page("error","Something Wrong.") 
+				    safeUnblock("error","Something Wrong.") 
 			   }
 			     
             },
@@ -714,7 +750,7 @@ $("#wallproduct_form").submit(function(event) {
 		return false;
 	}
  	 
-	block_page();
+	safeBlock();
 	var postData= new FormData(this);
 	$.ajax({
             type: "post",
@@ -741,7 +777,7 @@ $("#wallproduct_form").submit(function(event) {
 
 function load_design(product_size_id)
 {
-	block_page();
+	safeBlock();
 			  $.ajax({ 
               type: "POST", 
               url: root+'create_pi_loading/load_design',
@@ -780,13 +816,13 @@ function load_design(product_size_id)
 					$("#small_boxes_per_pallet").val(obj.packing.box_per_small_plt_new)
 					
 				   $("#design_id").html(obj.design_html);
-						unblock_page('',"")
+						safeUnblock('',"")
               }
 			});
 }
 function load_finish(design_id)
 {
-	block_page();
+	safeBlock();
 		$.ajax({ 
 		type: "POST", 
 		url: root+"product/load_finish_data",
@@ -797,7 +833,7 @@ function load_finish(design_id)
 		{
 			var obj = JSON.parse(response);
 				$("#finish_id").html(obj.html);
-				 unblock_page("",""); 
+				 safeUnblock("",""); 
 		}
 		
 	}); 
@@ -892,7 +928,7 @@ function cal_sqm(no)
 		 	 
 	  }
 }
-closeNav();
+if(typeof closeNav === 'function') { closeNav(); }
 $(".select2").select2({
 	 width:"100%"
 });
@@ -1042,7 +1078,7 @@ function delete_loading(con_entry,performa_invoice_id)
   confirmButtonText: 'Yes, confirm it!'
 }).then((result) => {
 		 if (result.value) {
-			block_page();
+			safeBlock();
 			  $.ajax({ 
               type: "POST", 
               url: root+'create_pi_loading/deleteloading',
@@ -1055,11 +1091,11 @@ function delete_loading(con_entry,performa_invoice_id)
 				var obj = JSON.parse(data);
 				if(obj.res==1)
 				{
-				 	unblock_page('success',"Producation Sucessfully deleted.");
+				 	safeUnblock('success',"Producation Sucessfully deleted.");
 						setTimeout(function(){ location.reload(); },1000); 
 				}
                 else{
-					unblock_page('error',"Somthing Wrong.")
+					safeUnblock('error',"Somthing Wrong.")
 				}
               }
 			});
@@ -1080,10 +1116,10 @@ function copy_containter(performa_invoice_id)
     });
 	 if(performa_packing_id == "" || performa_packing_id == null)
 	 {
-		 unblock_page('error',"Please select atlest 1 design");
+		 safeUnblock('error',"Please select atlest 1 design");
 		 return false;
 	 }
-	block_page();
+	safeBlock();
 	$.ajax({ 
              type: "POST", 
              url: root+'create_producation/copy_containter',
@@ -1100,7 +1136,7 @@ function copy_containter(performa_invoice_id)
 						keyboard: false
 					});
 					$("#set_container_detail").html(data);
-					unblock_page('',"")
+					safeUnblock('',"")
              }
 			});
 }
@@ -1130,7 +1166,7 @@ $("#product_add").submit(function(event) {
 		return false;
 	}
 	 
-	block_page();
+	safeBlock();
 	var postData= new FormData(this);
 	$.ajax({
             type: "post",
@@ -1148,7 +1184,7 @@ $("#product_add").submit(function(event) {
 				 $("#packing_id").val('').trigger('change');
 		 		 $("#productmodal").modal('hide');
 				 edit_loading($("#new_conentry").val(),$("#pinvoice_id").val(),$("#new_supplierid").val())  
-				unblock_page("success","Sucessfully Inserted.");
+				safeUnblock("success","Sucessfully Inserted.");
 			   
 		    },
             error: function(jqXHR, textStatus, errorThrown) {
@@ -1159,7 +1195,7 @@ $("#product_add").submit(function(event) {
 
 function load_packing(product_id)
 {
-	block_page();
+	safeBlock();
 			  $.ajax({ 
               type: "POST", 
               url: root+'create_pi_loading/load_packing',
@@ -1169,7 +1205,7 @@ function load_packing(product_id)
               cache: false, 
               success: function (data) { 
 				   $("#packing_id").html(data);
-						unblock_page('',"")
+						safeUnblock('',"")
               }
 			});
 }
