@@ -1297,6 +1297,20 @@ public function loading_data($performa_invoice_id,$supplier_id,$export_time)
 
 	}
 
+	public function update_on_the_way_details($performa_invoice_id,$data)
+
+	{
+
+		$this->db->where('performa_invoice_id',$performa_invoice_id);
+
+		$q = $this->db->update('tbl_pi_loading_plan',$data);
+
+		 
+
+		return $q;
+
+	}
+
 	public function update_exportcointainer($con_entry,$performa_invoice_id,$data)
 
 	{

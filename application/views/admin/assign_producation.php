@@ -97,6 +97,8 @@ $this->view('lib/header');
     <th style="width:8%;">Loading Done</th>
     <th style="width:8%;">Ready For Export</th>
     <th style="width:8%;">Export Done</th>
+    <th style="width:8%;">Way Date</th>
+    <th style="width:8%;">Estimated Arrival Date</th>
     <th style="width:8%;">Action</th>
 </tr>
 
@@ -211,25 +213,25 @@ $this->view('lib/footer');
                 <div class="modal-body">
                     <div class="form-group">
                         <label class="control-label" for="way_date">
-                            <i class="fa fa-calendar-check-o"></i> Way Date
+                            <i class="fa fa-calendar-check-o"></i> Way Date <span style="color: red;">*</span>
                         </label>
                         <div class="input-group">
                             <span class="input-group-addon">
                                 <i class="fa fa-calendar"></i>
                             </span>
-                            <input type="text" placeholder="dd-mm-yyyy" id="way_date" name="way_date" class="form-control defualt-date-picker" value="" required title="Select Way Date">
+                            <input type="text" placeholder="dd-mm-yyyy" id="way_date" name="way_date" class="form-control defualt-date-picker" value="" required title="Select Way Date" aria-required="true">
                         </div>
                     </div>
                     
                     <div class="form-group">
                         <label class="control-label" for="estimated_arrival_date">
-                            <i class="fa fa-clock-o"></i> Estimated Arrival Date
+                            <i class="fa fa-clock-o"></i> Estimated Arrival Date <span style="color: red;">*</span>
                         </label>
                         <div class="input-group">
                             <span class="input-group-addon">
                                 <i class="fa fa-calendar"></i>
                             </span>
-                            <input type="text" placeholder="dd-mm-yyyy" id="estimated_arrival_date" name="estimated_arrival_date" class="form-control defualt-date-picker" value="" required title="Select Estimated Arrival Date">
+                            <input type="text" placeholder="dd-mm-yyyy" id="estimated_arrival_date" name="estimated_arrival_date" class="form-control defualt-date-picker" value="" required title="Select Estimated Arrival Date" aria-required="true">
                         </div>
                     </div>
                     
@@ -313,6 +315,33 @@ $this->view('lib/footer');
 </div>
 
 <style>
+/* Remove whitespace from table cells */
+#datatable td {
+    padding: 8px 5px !important;
+}
+
+/* Ensure date columns have no extra spacing */
+#datatable td:nth-child(12),
+#datatable td:nth-child(13) {
+    white-space: nowrap;
+    padding: 8px 3px !important;
+    text-align: center;
+}
+
+/* Action column styling - allow wrapping for dropdown */
+#datatable td:nth-child(14) {
+    white-space: normal;
+    padding: 8px 5px !important;
+    text-align: center;
+}
+
+/* Remove extra spacing in date cells */
+#datatable td:nth-child(12) span,
+#datatable td:nth-child(13) span {
+    display: inline-block;
+    width: 100%;
+}
+
 /* Add to Inventory modal - match shared design */
 #addToInventoryModal .modal-content {
     border-radius: 8px;
@@ -614,33 +643,90 @@ function open_on_the_way_modal(performa_invoice_id) {
 	// Set the invoice ID
 	$("#on_the_way_performa_invoice_id").val(performa_invoice_id);
 	
-	// Reset form
+	// Reset form first
 	$("#on_the_way_form")[0].reset();
 	
-	// Initialize date pickers for modal fields with enhanced styling
-	$('#way_date, #estimated_arrival_date').datepicker({
-		autoclose: true,
-		format: 'dd-mm-yyyy',
-		orientation: 'bottom auto',
-		todayHighlight: true,
-		startDate: new Date()
-	}).on('show', function() {
-		$(this).closest('.input-group').addClass('datepicker-open');
-	}).on('hide', function() {
-		$(this).closest('.input-group').removeClass('datepicker-open');
-	});
+	// Block page while fetching data
+	safeBlock();
 	
-	// Open modal with animation
-	$("#onTheWayModal").modal({
-		backdrop: 'static',
-		keyboard: false,
-		show: true
+	// Fetch existing data
+	$.ajax({
+		type: "POST",
+		url: root + 'assign_producation/get_on_the_way_data',
+		data: {
+			"performa_invoice_id": performa_invoice_id
+		},
+		cache: false,
+		success: function(responseData) {
+			try {
+				var obj = JSON.parse(responseData);
+				
+				// Destroy existing datepickers if any (with error handling)
+				try {
+					$('#way_date, #estimated_arrival_date').datepicker('destroy');
+				} catch(e) {
+					// Datepicker might not be initialized, ignore error
+				}
+				
+				// Populate form fields with existing data if available
+				if(obj.res == 1) {
+					if(obj.way_date) {
+						$("#way_date").val(obj.way_date);
+					}
+					if(obj.estimated_arrival_date) {
+						$("#estimated_arrival_date").val(obj.estimated_arrival_date);
+					}
+					if(obj.on_the_way_notes) {
+						$("#on_the_way_notes").val(obj.on_the_way_notes);
+					}
+				}
+				
+			// Initialize date pickers for modal fields with enhanced styling
+			$('#way_date, #estimated_arrival_date').datepicker({
+				autoclose: true,
+				format: 'dd-mm-yyyy',
+				orientation: 'bottom auto',
+				todayHighlight: true,
+				startDate: new Date()
+			}).on('show', function() {
+				$(this).closest('.input-group').addClass('datepicker-open');
+			}).on('hide', function() {
+				$(this).closest('.input-group').removeClass('datepicker-open');
+			}).on('changeDate', function() {
+				// Trigger validation when date is selected
+				$(this).valid();
+			});
+				
+				// Unblock page
+				safeUnblock('', '');
+				
+				// Open modal with animation
+				$("#onTheWayModal").modal({
+					backdrop: 'static',
+					keyboard: false,
+					show: true
+				});
+				
+				// Add fade-in animation
+				setTimeout(function() {
+					$("#onTheWayModal .modal-content").addClass('modal-show');
+				}, 10);
+			} catch(e) {
+				safeUnblock("error", "An error occurred while processing data. Please try again.");
+				console.log("Error parsing response: " + e);
+			}
+		},
+		error: function(jqXHR, textStatus, errorThrown) {
+			safeUnblock("error", "An error occurred while loading data. Please try again.");
+			console.log("Error: " + textStatus + " - " + errorThrown);
+			// Still open modal even on error so user can enter data manually
+			$("#onTheWayModal").modal({
+				backdrop: 'static',
+				keyboard: false,
+				show: true
+			});
+		}
 	});
-	
-	// Add fade-in animation
-	setTimeout(function() {
-		$("#onTheWayModal .modal-content").addClass('modal-show');
-	}, 10);
 }
 
 // Handle On the Way form submission
@@ -657,59 +743,109 @@ $("#on_the_way_form").submit(function(event) {
 	var estimated_arrival_date = $("#estimated_arrival_date").val();
 	var on_the_way_notes = $("#on_the_way_notes").val();
 	
-	// TODO: Add your AJAX call here to save the data
-	// Example:
-	// safeBlock();
-	// $.ajax({
-	//     type: "POST",
-	//     url: root + 'your_controller/your_method',
-	//     data: {
-	//         "performa_invoice_id": performa_invoice_id,
-	//         "way_date": way_date,
-	//         "estimated_arrival_date": estimated_arrival_date,
-	//         "on_the_way_notes": on_the_way_notes
-	//     },
-	//     cache: false,
-	//     success: function(responseData) {
-	//         var obj = JSON.parse(responseData);
-	//         if(obj.res == 1) {
-	//             safeUnblock("success", "On the Way information saved successfully.");
-	//             $("#onTheWayModal").modal('hide');
-	//             $("#on_the_way_form")[0].reset();
-	//         } else {
-	//             safeUnblock("error", "Something went wrong. Please try again.");
-	//         }
-	//     },
-	//     error: function(jqXHR, textStatus, errorThrown) {
-	//         safeUnblock("error", "An error occurred. Please try again.");
-	//     }
-	// });
+	// Block page while processing
+	safeBlock();
 	
-	// For now, just close the modal
-	alert("Form data:\nPerforma Invoice ID: " + performa_invoice_id + "\nWay Date: " + way_date + "\nEstimated Arrival Date: " + estimated_arrival_date + "\nNotes: " + on_the_way_notes);
-	$("#onTheWayModal").modal('hide');
-	$("#on_the_way_form")[0].reset();
+	// AJAX call to save the data
+	$.ajax({
+		type: "POST",
+		url: root + 'assign_producation/save_on_the_way',
+		data: {
+			"performa_invoice_id": performa_invoice_id,
+			"way_date": way_date,
+			"estimated_arrival_date": estimated_arrival_date,
+			"on_the_way_notes": on_the_way_notes
+		},
+		cache: false,
+		success: function(responseData) {
+			try {
+				var obj = JSON.parse(responseData);
+				if(obj.res == 1) {
+					safeUnblock("success", obj.msg || "On the Way information saved successfully.");
+					$("#onTheWayModal").modal('hide');
+					$("#on_the_way_form")[0].reset();
+					// Reload the page to update the table data
+					setTimeout(function() {
+						window.location.reload();
+					}, 1000);
+				} else {
+					safeUnblock("error", obj.msg || "Something went wrong. Please try again.");
+				}
+			} catch(e) {
+				safeUnblock("error", "An error occurred while processing the response. Please try again.");
+				console.log("Error parsing response: " + e);
+			}
+		},
+		error: function(jqXHR, textStatus, errorThrown) {
+			safeUnblock("error", "An error occurred. Please try again.");
+			console.log("Error: " + textStatus + " - " + errorThrown);
+		}
+	});
 });
 
 // Add validation rules for On the Way form
 $("#on_the_way_form").validate({
 	rules: {
 		way_date: {
-			required: true
+			required: true,
+			dateFormat: true
 		},
 		estimated_arrival_date: {
-			required: true
+			required: true,
+			dateFormat: true
 		}
 	},
 	messages: {
 		way_date: {
-			required: "Please select Way Date"
+			required: "Way Date is required. Please select a date."
 		},
 		estimated_arrival_date: {
-			required: "Please select Estimated Arrival Date"
+			required: "Estimated Arrival Date is required. Please select a date."
 		}
+	},
+	errorClass: "error",
+	validClass: "valid",
+	errorPlacement: function(error, element) {
+		error.insertAfter(element.closest('.input-group'));
+	},
+	highlight: function(element) {
+		$(element).closest('.form-group').addClass('has-error');
+	},
+	unhighlight: function(element) {
+		$(element).closest('.form-group').removeClass('has-error');
+	},
+	submitHandler: function(form) {
+		// This will only be called if validation passes
+		return true;
 	}
 });
+
+// Add custom validation method for date format
+$.validator.addMethod("dateFormat", function(value, element) {
+	if (!value) {
+		return false;
+	}
+	// Check if date is in dd-mm-yyyy format
+	var datePattern = /^(\d{2})-(\d{2})-(\d{4})$/;
+	if (!datePattern.test(value)) {
+		return false;
+	}
+	var parts = value.split('-');
+	var day = parseInt(parts[0], 10);
+	var month = parseInt(parts[1], 10);
+	var year = parseInt(parts[2], 10);
+	
+	// Validate date
+	if (month < 1 || month > 12) return false;
+	if (day < 1 || day > 31) return false;
+	if (year < 1900 || year > 2100) return false;
+	
+	// Check if date is valid
+	var date = new Date(year, month - 1, day);
+	return date.getFullYear() == year && 
+		   date.getMonth() == month - 1 && 
+		   date.getDate() == day;
+}, "Please enter a valid date in dd-mm-yyyy format");
 
 // Function to open Add to Inventory modal
 function open_add_to_inventory_modal(performa_invoice_id) {
@@ -780,24 +916,26 @@ function load_data_table() {
             { "bSortable": true },   // 8: Loading Done
             { "bSortable": true },   // 9: Ready Export
             { "bSortable": false },  // 10: Export Done
-            { "bSortable": false }   // 11: Action
+            { "bSortable": true },   // 11: Way Date
+            { "bSortable": true },   // 12: Estimated Arrival Date
+            { "bSortable": false }   // 13: Action
         ],
 
         "columnDefs": [
-            { "targets": 0, "width": "5%", "className": "text-center" },  // Sr No
-            { "targets": 1, "width": "10%" }, // PO No
-            { "targets": 2, "width": "12%" }, // PI No
-            { "targets": 3, "width": "10%" }, // PI Date
-            { "targets": 4, "width": "15%" }, // Consignee
-            { "targets": 5, "width": "10%" }, // No of Container
-            { "targets": 6, "width": "10%" }, // Production Done
-            { "targets": 7, "width": "10%" }, // Pending Loading
-            { "targets": 8, "width": "10%" }, // Loading Done
-            { "targets": 9, "width": "10%" }, // Ready Export
-            { "targets": 10, "width": "8%" }, // Export Done
-            { "targets": 11, "width": "10%" }, // Action
-
-            { "targets": "_all", "className": "text-center" }
+            { "targets": 0, "width": "3%", "className": "text-center" },  // Sr No
+            { "targets": 1, "width": "8%", "className": "text-center" }, // PO No
+            { "targets": 2, "width": "8%", "className": "text-center" }, // PI No
+            { "targets": 3, "width": "7%", "className": "text-center" }, // PI Date
+            { "targets": 4, "width": "12%", "className": "text-left" }, // Consignee
+            { "targets": 5, "width": "6%", "className": "text-center" }, // No of Container
+            { "targets": 6, "width": "7%", "className": "text-center" }, // Production Done
+            { "targets": 7, "width": "6%", "className": "text-center" }, // Pending Loading
+            { "targets": 8, "width": "6%", "className": "text-center" }, // Loading Done
+            { "targets": 9, "width": "6%", "className": "text-center" }, // Ready Export
+            { "targets": 10, "width": "6%", "className": "text-center" }, // Export Done
+            { "targets": 11, "width": "7%", "className": "text-center", "sType": "date" }, // Way Date
+            { "targets": 12, "width": "7%", "className": "text-center", "sType": "date" }, // Estimated Arrival Date
+            { "targets": 13, "width": "7%", "className": "text-center" } // Action
         ],
 
         "searchDelay": 350,

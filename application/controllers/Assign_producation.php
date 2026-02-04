@@ -138,6 +138,32 @@ class Assign_producation extends CI_controller
 		$readyforexport = 0;
 		$exportdone = 0;
 
+		// Fetch all way dates and estimated arrival dates in one query for better performance
+		$way_dates_map = array();
+		if (!empty($resultdata)) {
+			$performa_invoice_ids = array();
+			foreach ($resultdata as $row) {
+				$performa_invoice_ids[] = $row->performa_invoice_id;
+			}
+			
+			if (!empty($performa_invoice_ids)) {
+				$this->db->select('performa_invoice_id, way_date, estimated_arrival_date');
+				$this->db->from('tbl_pi_loading_plan');
+				$this->db->where_in('performa_invoice_id', $performa_invoice_ids);
+				$this->db->where('way_date IS NOT NULL');
+				$this->db->group_by('performa_invoice_id');
+				$way_dates_query = $this->db->get();
+				$way_dates_result = $way_dates_query->result();
+				
+				foreach ($way_dates_result as $way_date_row) {
+					$way_dates_map[$way_date_row->performa_invoice_id] = array(
+						'way_date' => $way_date_row->way_date,
+						'estimated_arrival_date' => $way_date_row->estimated_arrival_date
+					);
+				}
+			}
+		}
+
 		if (!empty($resultdata)) {
 			foreach ($resultdata as $row) {
 				$set_container = $this->Admin_pdf->product_set_data($row->performa_invoice_id, -1);
@@ -166,6 +192,20 @@ class Assign_producation extends CI_controller
 					$cust_name = !empty($row->c_nick_name) ? $row->c_nick_name : $row->c_companyname;
 					$tt = ($readyforexport_row - $exportcontainer);
 					
+					// Get way_date and estimated_arrival_date from the pre-fetched map
+					$way_date_display = '-';
+					$estimated_arrival_date_display = '-';
+					
+					if (isset($way_dates_map[$row->performa_invoice_id])) {
+						$way_date_info = $way_dates_map[$row->performa_invoice_id];
+						if (!empty($way_date_info['way_date'])) {
+							$way_date_display = date('d/m/Y', strtotime($way_date_info['way_date']));
+						}
+						if (!empty($way_date_info['estimated_arrival_date'])) {
+							$estimated_arrival_date_display = date('d/m/Y', strtotime($way_date_info['estimated_arrival_date']));
+						}
+					}
+					
 					$appData[] = array(
 						$no,
 						$row->producation_no,
@@ -178,6 +218,8 @@ class Assign_producation extends CI_controller
 						$setcontainer,
 						$tt,
 						$exportcontainer,
+						trim($way_date_display),
+						trim($estimated_arrival_date_display),
 						'<div class="dropdown">
 							<button class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown">Action
 							<span class="caret"></span></button>
@@ -210,7 +252,8 @@ class Assign_producation extends CI_controller
 			$totalloadingdone,
 			$readyforexport,
 			$exportdone,
-			'',
+			'-',
+			'-',
 			''
 		);
 
@@ -340,5 +383,138 @@ class Assign_producation extends CI_controller
 				</div>';
 		echo $str;
 	
+	}
+
+	public function get_on_the_way_data()
+	{
+		$performa_invoice_id = $this->input->post('performa_invoice_id');
+		
+		$row = array();
+		
+		if(empty($performa_invoice_id))
+		{
+			$row['res'] = 0;
+			$row['msg'] = "Performa Invoice ID is required";
+			echo json_encode($row);
+			return;
+		}
+		
+		// Load the Admin_pdf model
+		$this->load->model('Admin_pdf', 'pinv');
+		
+		// Get way_date, estimated_arrival_date, and on_the_way_notes from tbl_pi_loading_plan
+		// Get any record for this performa_invoice_id (we update all records with same data)
+		$this->db->select('way_date, estimated_arrival_date, on_the_way_notes');
+		$this->db->from('tbl_pi_loading_plan');
+		$this->db->where('performa_invoice_id', $performa_invoice_id);
+		$this->db->limit(1);
+		$query = $this->db->get();
+		$result = $query->row();
+		
+		if (!empty($result)) {
+			// Convert dates from yyyy-mm-dd to dd-mm-yyyy for display
+			$way_date_formatted = '';
+			$estimated_arrival_date_formatted = '';
+			
+			if (!empty($result->way_date) && $result->way_date != '0000-00-00' && $result->way_date != '1970-01-01') {
+				$way_timestamp = strtotime($result->way_date);
+				if ($way_timestamp !== false) {
+					$way_date_formatted = date('d-m-Y', $way_timestamp);
+				}
+			}
+			
+			if (!empty($result->estimated_arrival_date) && $result->estimated_arrival_date != '0000-00-00' && $result->estimated_arrival_date != '1970-01-01') {
+				$arrival_timestamp = strtotime($result->estimated_arrival_date);
+				if ($arrival_timestamp !== false) {
+					$estimated_arrival_date_formatted = date('d-m-Y', $arrival_timestamp);
+				}
+			}
+			
+			$row['res'] = 1;
+			$row['way_date'] = $way_date_formatted;
+			$row['estimated_arrival_date'] = $estimated_arrival_date_formatted;
+			$row['on_the_way_notes'] = !empty($result->on_the_way_notes) ? $result->on_the_way_notes : '';
+		} else {
+			$row['res'] = 0;
+			$row['way_date'] = '';
+			$row['estimated_arrival_date'] = '';
+			$row['on_the_way_notes'] = '';
+		}
+		
+		echo json_encode($row);
+	}
+
+	public function save_on_the_way()
+	{
+		$performa_invoice_id = $this->input->post('performa_invoice_id');
+		$way_date = $this->input->post('way_date');
+		$estimated_arrival_date = $this->input->post('estimated_arrival_date');
+		$on_the_way_notes = $this->input->post('on_the_way_notes');
+		
+		$row = array();
+		
+		if(empty($performa_invoice_id))
+		{
+			$row['res'] = 0;
+			$row['msg'] = "Performa Invoice ID is required";
+			echo json_encode($row);
+			return;
+		}
+		
+		// Convert date format from dd-mm-yyyy to yyyy-mm-dd
+		$way_date_formatted = null;
+		$estimated_arrival_date_formatted = null;
+		
+		if(!empty($way_date)) {
+			$date_parts = explode('-', $way_date);
+			if(count($date_parts) == 3) {
+				// Validate date parts are numeric
+				if(is_numeric($date_parts[0]) && is_numeric($date_parts[1]) && is_numeric($date_parts[2])) {
+					// Validate date is valid
+					if(checkdate($date_parts[1], $date_parts[0], $date_parts[2])) {
+						$way_date_formatted = $date_parts[2] . '-' . $date_parts[1] . '-' . $date_parts[0];
+					}
+				}
+			}
+		}
+		
+		if(!empty($estimated_arrival_date)) {
+			$date_parts = explode('-', $estimated_arrival_date);
+			if(count($date_parts) == 3) {
+				// Validate date parts are numeric
+				if(is_numeric($date_parts[0]) && is_numeric($date_parts[1]) && is_numeric($date_parts[2])) {
+					// Validate date is valid
+					if(checkdate($date_parts[1], $date_parts[0], $date_parts[2])) {
+						$estimated_arrival_date_formatted = $date_parts[2] . '-' . $date_parts[1] . '-' . $date_parts[0];
+					}
+				}
+			}
+		}
+		
+		// Prepare data array
+		$data = array(
+			'way_date' => $way_date_formatted,
+			'estimated_arrival_date' => $estimated_arrival_date_formatted,
+			'on_the_way_notes' => $on_the_way_notes
+		);
+		
+		// Load the Admin_pdf model
+		$this->load->model('Admin_pdf', 'pinv');
+		
+		// Update all records for this performa_invoice_id
+		$update_result = $this->pinv->update_on_the_way_details($performa_invoice_id, $data);
+		
+		if($update_result)
+		{
+			$row['res'] = 1;
+			$row['msg'] = "On the Way information saved successfully";
+		}
+		else
+		{
+			$row['res'] = 0;
+			$row['msg'] = "Something went wrong. Please try again.";
+		}
+		
+		echo json_encode($row);
 	}
 }
