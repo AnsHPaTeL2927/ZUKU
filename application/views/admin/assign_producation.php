@@ -259,7 +259,7 @@ $this->view('lib/footer');
 
 <!-- Add to Inventory Modal -->
 <div id="addToInventoryModal" class="modal fade" role="dialog">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg" style="max-width: 90%; width: 1200px;">
         <div class="modal-content add-to-inventory-modal">
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal">&times;</button>
@@ -317,13 +317,17 @@ $this->view('lib/footer');
 /* Add to Inventory modal - match shared design */
 #addToInventoryModal .modal-content {
     border-radius: 8px;
-    overflow: hidden;
+    overflow: visible;
     box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
 }
 
 #addToInventoryModal .modal-header {
     border-bottom: 1px solid #eee;
     padding: 15px 20px;
+    flex-shrink: 0;
 }
 
 #addToInventoryModal .modal-title {
@@ -333,6 +337,10 @@ $this->view('lib/footer');
 
 #addToInventoryModal .modal-body {
     padding: 20px 25px;
+    overflow-x: visible;
+    overflow-y: auto;
+    max-height: calc(90vh - 120px);
+    flex: 1 1 auto;
 }
 
 #addToInventoryModal .control-label {
@@ -351,10 +359,195 @@ $this->view('lib/footer');
     border-top: 1px solid #eee;
     padding: 15px 25px;
     background: #f9f9f9;
+    flex-shrink: 0;
 }
 
 #addToInventoryModal .btn-primary {
     padding: 8px 20px;
+}
+
+/* Custom Design Dropdown Styles */
+.design-dropdown-wrapper {
+    position: relative;
+    width: 100%;
+    z-index: 1;
+}
+
+#addToInventoryModal .panel-body {
+    overflow: visible;
+}
+
+#addToInventoryModal .warehouse-form {
+    overflow: visible;
+}
+
+/* Design Preview Table Styles */
+#design_preview_content .table-responsive {
+    margin: 0;
+}
+
+#design_preview_content .table {
+    margin-bottom: 0;
+}
+
+#design_preview_content .table thead th {
+    background-color: #f5f5f5;
+    font-weight: 600;
+    font-size: 13px;
+}
+
+#design_preview_content .table tbody td {
+    vertical-align: middle;
+}
+
+/* Scrollable inner table */
+#design_preview_content .table tbody td > div {
+    max-height: 300px;
+    overflow-y: auto;
+    overflow-x: auto;
+}
+
+#design_preview_content .table tbody td table {
+    margin-bottom: 0;
+}
+
+#design_preview_content .table tbody td table thead th {
+    background-color: #e8e8e8;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 6px 8px;
+    white-space: nowrap;
+}
+
+#design_preview_content .table tbody td table tbody td {
+    padding: 6px 8px;
+    font-size: 12px;
+}
+
+#design_preview_content .table tbody td table tbody tr:hover {
+    background-color: #f9f9f9;
+}
+
+.design-dropdown-toggle {
+    background-color: #fff;
+    border: 1px solid #ccc;
+}
+
+.design-dropdown-toggle:hover {
+    border-color: #999;
+}
+
+.design-dropdown-menu {
+    max-height: 500px;
+    overflow-y: auto;
+    width: 100%;
+    min-width: 100%;
+    z-index: 1050;
+    position: absolute;
+}
+
+.design-table-container {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.design-selection-table {
+    font-size: 13px;
+}
+
+.design-selection-table thead th {
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    border-bottom: 2px solid #ddd;
+}
+
+.design-selection-table tbody tr {
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.design-selection-table tbody tr:hover {
+    background-color: #f5f5f5;
+}
+
+.design-selection-table tbody tr.selected {
+    background-color: #e7f3ff;
+}
+
+.design-selection-table tbody tr.selected:hover {
+    background-color: #d0e7ff;
+}
+
+.design-selection-table tbody td {
+    padding: 8px;
+    vertical-align: middle;
+}
+
+.design-selection-table tbody td:first-child {
+    text-align: center;
+    width: 30px;
+}
+
+.design-selection-table tbody td:last-child {
+    text-align: right;
+    font-weight: 600;
+}
+
+.design-selection-table tbody tr.disabled-row {
+    opacity: 0.5;
+    background-color: #f9f9f9;
+    cursor: not-allowed;
+}
+
+.design-selection-table tbody tr.disabled-row:hover {
+    background-color: #f9f9f9;
+}
+
+.design-selection-table tbody tr.disabled-row input[type="number"] {
+    background-color: #f5f5f5;
+    cursor: not-allowed;
+}
+
+.design-boxes-input {
+    border: 1px solid #ddd;
+    border-radius: 3px;
+}
+
+.design-boxes-input:focus {
+    border-color: #66afe9;
+    outline: 0;
+    box-shadow: inset 0 1px 1px rgba(0,0,0,.075), 0 0 8px rgba(102,175,233,.6);
+}
+
+.design-boxes-input.has-error {
+    border-color: #d9534f;
+    box-shadow: inset 0 1px 1px rgba(0,0,0,.075), 0 0 6px rgba(217,83,79,.6);
+}
+
+.boxes-error-message {
+    font-size: 11px;
+    color: #d9534f;
+    font-weight: 600;
+}
+
+.boxes-max-hint {
+    font-size: 10px;
+    color: #999;
+    font-style: italic;
+}
+
+.design-boxes-input:focus + .boxes-error-message + .boxes-max-hint {
+    color: #337ab7;
+}
+
+.design-selected-text {
+    display: inline-block;
+}
+
+.design-selected-count {
+    color: #337ab7;
+    font-weight: 600;
 }
 
 /* Theme-based styling for On the Way modal */
@@ -833,6 +1026,7 @@ function open_add_to_inventory_modal(performa_invoice_id) {
 	// Reset global variables
 	window.allDesigns = [];
 	window.selectedDesignsMap = {}; // warehouse_id -> array of design IDs
+	window.designBoxesMap = {}; // warehouse_id -> { design_id: boxes }
 	
 	// Fetch both warehouses and designs
 		
@@ -879,9 +1073,10 @@ function open_add_to_inventory_modal(performa_invoice_id) {
 				return;
 			}
 			
-			// Initialize selected designs map for each warehouse
+			// Initialize selected designs map and boxes map for each warehouse
 			$.each(warehouses, function(index, warehouse) {
 				window.selectedDesignsMap[warehouse.id] = [];
+				window.designBoxesMap[warehouse.id] = {};
 			});
 			
 			// Create a form for each warehouse
@@ -901,22 +1096,33 @@ function open_add_to_inventory_modal(performa_invoice_id) {
 				formHtml += '<div class="panel-body">';
 				formHtml += '<div class="form-group">';
 				formHtml += '<label class="control-label"><strong>Select Designs <span style="color: red;">*</span></strong></label>';
-				formHtml += '<select class="form-control design-multiselect" name="designs[]" multiple required style="min-height: 150px;" data-warehouse-id="' + warehouse.id + '">';
 				
-				// Populate with all available designs for first warehouse
-				if (window.allDesigns && window.allDesigns.length > 0 && index === 0) {
-					$.each(window.allDesigns, function(dIndex, design) {
-						formHtml += '<option value="' + design.id + '" data-design-name="' + design.name.replace(/'/g, "&#39;") + '">' + design.name + '</option>';
-					});
-				} else if (index > 0) {
-					// For subsequent warehouses, options will be populated dynamically
-					formHtml += '<option disabled>No designs available</option>';
-				} else {
-					formHtml += '<option disabled>No designs available for this order</option>';
-				}
-				
-				formHtml += '</select>';
-				formHtml += '<small class="help-block">Hold Ctrl (or Cmd on Mac) to select multiple designs</small>';
+				// Custom dropdown with table
+				formHtml += '<div class="design-dropdown-wrapper" data-warehouse-id="' + warehouse.id + '">';
+				formHtml += '<div class="design-dropdown-toggle form-control" style="cursor: pointer; position: relative; min-height: 38px; padding: 6px 12px;">';
+				formHtml += '<span class="design-selected-text" style="color: #999;">Click to select designs...</span>';
+				formHtml += '<span class="caret" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%);"></span>';
+				formHtml += '</div>';
+				formHtml += '<div class="design-dropdown-menu" style="display: none; position: absolute; z-index: 1000; background: white; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); max-height: 400px; overflow-y: auto; width: 100%; margin-top: 2px;">';
+				formHtml += '<div class="design-table-container">';
+				formHtml += '<table class="table table-bordered table-hover design-selection-table" style="margin: 0;">';
+				formHtml += '<thead style="background: #f5f5f5; position: sticky; top: 0; z-index: 10;">';
+				formHtml += '<tr>';
+				formHtml += '<th style="width: 30px; text-align: center;"><input type="checkbox" class="select-all-designs" /></th>';
+				formHtml += '<th style="padding: 8px;">Size</th>';
+				formHtml += '<th style="padding: 8px;">Finish</th>';
+				formHtml += '<th style="padding: 8px;">Design Name</th>';
+				formHtml += '<th style="padding: 8px; text-align: right;">Boxes</th>';
+				formHtml += '</tr>';
+				formHtml += '</thead>';
+				formHtml += '<tbody class="design-table-body">';
+				formHtml += '</tbody>';
+				formHtml += '</table>';
+				formHtml += '</div>';
+				formHtml += '</div>';
+				formHtml += '<input type="hidden" class="design-multiselect" name="designs[]" data-warehouse-id="' + warehouse.id + '" />';
+				formHtml += '</div>';
+				formHtml += '<small class="help-block">Click on rows to select multiple designs</small>';
 				formHtml += '</div>';
 				formHtml += '<div class="form-group">';
 				formHtml += '<label class="control-label"><strong>Notes (Optional)</strong></label>';
@@ -940,6 +1146,9 @@ function open_add_to_inventory_modal(performa_invoice_id) {
 				$("#warehouse_forms_container").append(formHtml);
 			});
 			
+			// Populate design tables
+			populateDesignTables();
+			
 			// Initialize preview
 			updateDesignPreview();
 			
@@ -962,8 +1171,48 @@ function open_add_to_inventory_modal(performa_invoice_id) {
 	});
 }
 
-// Function to update design dropdowns based on selected designs
-function updateDesignDropdowns() {
+// Function to calculate remaining boxes for a design across all warehouses
+// If warehouseId is provided, excludes that warehouse's allocation from the calculation
+function getRemainingBoxes(designId, excludeWarehouseId) {
+	// Get total boxes for this design
+	var design = window.allDesigns.find(function(d) {
+		return d.id.toString() === designId.toString();
+	});
+	
+	if (!design) {
+		return 0;
+	}
+	
+	// Parse boxes from design
+	var parts = design.name.split(' - ');
+	var boxes = parts.length >= 4 ? parts[3] : (parts.length >= 3 ? parts[2] : (parts.length >= 2 ? parts[1] : '0'));
+	if (design.boxes !== undefined) {
+		boxes = design.boxes || '0';
+	}
+	
+	var totalBoxes = parseInt(boxes) || 0;
+	
+	// Calculate allocated boxes across all warehouses (excluding specified warehouse if provided)
+	var allocatedBoxes = 0;
+	if (window.designBoxesMap) {
+		$.each(window.designBoxesMap, function(warehouseId, designMap) {
+			// Skip excluded warehouse
+			if (excludeWarehouseId && warehouseId.toString() === excludeWarehouseId.toString()) {
+				return;
+			}
+			if (designMap && designMap[designId] !== undefined) {
+				allocatedBoxes += parseInt(designMap[designId]) || 0;
+			}
+		});
+	}
+	
+	// Return remaining boxes
+	var remaining = totalBoxes - allocatedBoxes;
+	return remaining > 0 ? remaining : 0;
+}
+
+// Function to populate design tables
+function populateDesignTables() {
 	var allSelectedDesignIds = [];
 	
 	// Collect all selected design IDs from all warehouses
@@ -971,44 +1220,155 @@ function updateDesignDropdowns() {
 		allSelectedDesignIds = allSelectedDesignIds.concat(designIds);
 	});
 	
-	// Update each warehouse's dropdown
-	$('.design-multiselect').each(function() {
-		var $select = $(this);
-		var warehouseId = $select.data('warehouse-id');
-		var currentSelected = $select.val() || [];
+	// Update each warehouse's table
+	$('.design-dropdown-wrapper').each(function() {
+		var $wrapper = $(this);
+		var warehouseId = $wrapper.data('warehouse-id');
+		var currentSelected = window.selectedDesignsMap[warehouseId] || [];
+		var $tbody = $wrapper.find('.design-table-body');
+		var $hiddenInput = $wrapper.find('.design-multiselect');
 		
-		// Clear and repopulate dropdown
-		$select.empty();
+		// Clear table body
+		$tbody.empty();
 		
-		// Get available designs (not selected in other warehouses)
+		// Get available designs - filter based on remaining boxes
 		var availableDesigns = window.allDesigns.filter(function(design) {
-			// Include if not selected in other warehouses OR if selected in current warehouse
-			return allSelectedDesignIds.indexOf(design.id.toString()) === -1 || 
-				   currentSelected.indexOf(design.id.toString()) !== -1;
+			// Parse boxes from design to check total boxes
+			var parts = design.name.split(' - ');
+			var boxes = parts.length >= 4 ? parts[3] : (parts.length >= 3 ? parts[2] : (parts.length >= 2 ? parts[1] : '0'));
+			if (design.boxes !== undefined) {
+				boxes = design.boxes || '0';
+			}
+			var totalBoxes = parseInt(boxes) || 0;
+			
+			// Don't show designs with 0 total boxes
+			if (totalBoxes === 0) {
+				return false;
+			}
+			
+			var remainingBoxes = getRemainingBoxes(design.id);
+			var isSelectedInCurrent = currentSelected.indexOf(design.id.toString()) !== -1;
+			
+			// Show design if:
+			// 1. It has remaining boxes > 0, OR
+			// 2. It's already selected in current warehouse (even if remaining is 0, to allow editing)
+			return remainingBoxes > 0 || isSelectedInCurrent;
 		});
 		
 		if (availableDesigns.length > 0) {
+			var allSelectedInView = true;
 			$.each(availableDesigns, function(dIndex, design) {
 				var isSelected = currentSelected.indexOf(design.id.toString()) !== -1;
-				$select.append(
-					$('<option></option>')
-						.attr('value', design.id)
-						.attr('data-design-name', design.name)
-						.text(design.name)
-						.prop('selected', isSelected)
-				);
+				if (!isSelected) {
+					allSelectedInView = false;
+				}
+				
+				// Parse design name to extract size, finish, design name, boxes
+				var parts = design.name.split(' - ');
+				var size = parts.length >= 4 ? parts[0] : '';
+				var finish = parts.length >= 4 ? parts[1] : (parts.length >= 3 ? parts[0] : '');
+				var designName = parts.length >= 4 ? parts[2] : (parts.length >= 3 ? parts[1] : (parts.length >= 2 ? parts[0] : design.name));
+				var boxes = parts.length >= 4 ? parts[3] : (parts.length >= 3 ? parts[2] : (parts.length >= 2 ? parts[1] : '0'));
+				
+				// If we have separate fields, use them
+				if (design.size !== undefined) {
+					size = design.size || '';
+					finish = design.finish || '';
+					designName = design.design_name || design.name;
+					boxes = design.boxes || '0';
+				}
+				
+				// Calculate remaining boxes for this design (excluding current warehouse's allocation)
+				var remainingBoxes = getRemainingBoxes(design.id, warehouseId);
+				
+				// Get current allocation in this warehouse
+				var currentWarehouseAllocation = 0;
+				if (window.designBoxesMap && window.designBoxesMap[warehouseId] && window.designBoxesMap[warehouseId][design.id] !== undefined) {
+					currentWarehouseAllocation = parseInt(window.designBoxesMap[warehouseId][design.id]) || 0;
+				}
+				
+				// Max boxes this warehouse can allocate = remaining + current allocation
+				var maxBoxesForWarehouse = remainingBoxes + currentWarehouseAllocation;
+				
+				// Parse total boxes from design
+				var totalBoxes = parseInt(boxes) || 0;
+				
+				// Get custom box quantity if exists, otherwise use max boxes available (remaining boxes)
+				var customBoxes = maxBoxesForWarehouse;
+				if (window.designBoxesMap && window.designBoxesMap[warehouseId] && window.designBoxesMap[warehouseId][design.id] !== undefined) {
+					customBoxes = Math.round(parseInt(window.designBoxesMap[warehouseId][design.id]) || 0);
+				}
+				
+				var currentBoxes = parseInt(customBoxes) || 0;
+				
+				// Ensure custom boxes doesn't exceed max boxes for this warehouse
+				currentBoxes = Math.round(currentBoxes);
+				if (currentBoxes > maxBoxesForWarehouse) {
+					currentBoxes = maxBoxesForWarehouse;
+					customBoxes = maxBoxesForWarehouse;
+					// Update the stored value
+					if (!window.designBoxesMap[warehouseId]) {
+						window.designBoxesMap[warehouseId] = {};
+					}
+					window.designBoxesMap[warehouseId][design.id] = maxBoxesForWarehouse;
+				}
+				
+				// Disable checkbox and input if no boxes available (0 remaining and not selected)
+				var hasNoBoxes = maxBoxesForWarehouse === 0 && !isSelected;
+				var isDisabled = hasNoBoxes;
+				
+				var rowClass = isSelected ? 'selected' : '';
+				if (isDisabled) {
+					rowClass += ' disabled-row';
+				}
+				
+				var rowHtml = '<tr class="design-table-row ' + rowClass + '" data-design-id="' + design.id + '" data-warehouse-id="' + warehouseId + '" data-original-boxes="' + Math.round(totalBoxes) + '" data-total-boxes="' + Math.round(totalBoxes) + '" data-remaining-boxes="' + remainingBoxes + '" data-max-boxes="' + maxBoxesForWarehouse + '">';
+				rowHtml += '<td style="text-align: center;"><input type="checkbox" class="design-checkbox" ' + (isSelected ? 'checked' : '') + (hasNoBoxes ? ' disabled' : '') + ' /></td>';
+				rowHtml += '<td>' + (size || '-') + '</td>';
+				rowHtml += '<td>' + (finish || '-') + '</td>';
+				rowHtml += '<td>' + designName + '</td>';
+				rowHtml += '<td style="text-align: right; padding: 4px !important; position: relative;">';
+				rowHtml += '<div style="display: inline-block; position: relative;">';
+				rowHtml += '<input type="number" class="form-control design-boxes-input" value="' + Math.round(customBoxes) + '" min="0" max="' + maxBoxesForWarehouse + '" step="1" placeholder="Max: ' + maxBoxesForWarehouse + '" style="width: 100px; text-align: right; display: inline-block; margin: 0; padding: 4px 8px; font-size: 13px;" data-design-id="' + design.id + '" data-warehouse-id="' + warehouseId + '" data-total-boxes="' + Math.round(totalBoxes) + '" data-remaining-boxes="' + remainingBoxes + '" data-max-boxes="' + maxBoxesForWarehouse + '" title="Maximum allowed: ' + maxBoxesForWarehouse + ' boxes (Remaining: ' + remainingBoxes + ')" ' + (isDisabled ? 'disabled' : '') + ' />';
+				rowHtml += '<small class="boxes-error-message" style="display: none; color: #d9534f; font-size: 11px; position: absolute; right: 0; top: -18px; white-space: nowrap; background: white; padding: 2px 4px; border-radius: 3px; z-index: 1000;">Max: ' + maxBoxesForWarehouse + '</small>';
+				rowHtml += '<small class="boxes-max-hint" style="display: block; color: #999; font-size: 10px; margin-top: 2px; text-align: right;">Remaining: ' + remainingBoxes + ' / Total: ' + totalBoxes + '</small>';
+				rowHtml += '</div>';
+				rowHtml += '</td>';
+				rowHtml += '</tr>';
+				
+				$tbody.append(rowHtml);
 			});
+			
+			// Update select all checkbox state
+			var $selectAll = $wrapper.find('.select-all-designs');
+			if (availableDesigns.length > 0) {
+				$selectAll.prop('checked', allSelectedInView && availableDesigns.length > 0);
+			} else {
+				$selectAll.prop('checked', false);
+			}
+			
+			// Update hidden input value
+			$hiddenInput.val(currentSelected.join(','));
 		} else {
-			$select.append($('<option disabled>No designs available</option>'));
+			$tbody.append('<tr><td colspan="5" style="text-align: center; padding: 20px; color: #999;">No designs available</td></tr>');
+			$wrapper.find('.select-all-designs').prop('checked', false);
 		}
+		
+		// Update toggle text
+		updateDesignToggleText(warehouseId);
 	});
+}
+
+// Function to update design dropdowns based on selected designs
+function updateDesignDropdowns() {
+	populateDesignTables();
 }
 
 // Function to update design preview
 function updateDesignPreview() {
 	var hasSelections = false;
 	var previewHtml = '<div class="table-responsive"><table class="table table-bordered table-striped">';
-	previewHtml += '<thead><tr><th>Warehouse</th><th>Selected Designs</th></tr></thead><tbody>';
+	previewHtml += '<thead><tr><th style="width: 25%;">Warehouse</th><th style="width: 75%;">Selected Designs</th></tr></thead><tbody>';
 	
 	$.each(window.selectedDesignsMap, function(warehouseId, designIds) {
 		if (designIds && designIds.length > 0) {
@@ -1016,19 +1376,62 @@ function updateDesignPreview() {
 			var warehouseForm = $('.warehouse-form[data-warehouse-id="' + warehouseId + '"]');
 			var warehouseName = warehouseForm.data('warehouse-name') || 'Warehouse ' + warehouseId;
 			
-			var designNames = [];
+			// Build table for designs
+			var designsTableHtml = '<div style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px;">';
+			designsTableHtml += '<table class="table table-bordered table-condensed table-hover" style="margin: 0; font-size: 12px;">';
+			designsTableHtml += '<thead style="background-color: #f5f5f5; position: sticky; top: 0; z-index: 10;">';
+			designsTableHtml += '<tr>';
+			designsTableHtml += '<th style="width: 20%; padding: 6px;">Size</th>';
+			designsTableHtml += '<th style="width: 25%; padding: 6px;">Finish</th>';
+			designsTableHtml += '<th style="width: 40%; padding: 6px;">Design Name</th>';
+			designsTableHtml += '<th style="width: 15%; padding: 6px; text-align: right;">Boxes</th>';
+			designsTableHtml += '</tr>';
+			designsTableHtml += '</thead>';
+			designsTableHtml += '<tbody>';
+			
 			$.each(designIds, function(index, designId) {
 				var design = window.allDesigns.find(function(d) {
 					return d.id.toString() === designId.toString();
 				});
 				if (design) {
-					designNames.push(design.name);
+					// Parse design details
+					var parts = design.name.split(' - ');
+					var size = parts.length >= 4 ? parts[0] : '';
+					var finish = parts.length >= 4 ? parts[1] : (parts.length >= 3 ? parts[0] : '');
+					var designName = parts.length >= 4 ? parts[2] : (parts.length >= 3 ? parts[1] : (parts.length >= 2 ? parts[0] : design.name));
+					var boxes = parts.length >= 4 ? parts[3] : (parts.length >= 3 ? parts[2] : (parts.length >= 2 ? parts[1] : '0'));
+					
+					// Use separate fields if available
+					if (design.size !== undefined) {
+						size = design.size || '';
+						finish = design.finish || '';
+						designName = design.design_name || design.name;
+						boxes = design.boxes || '0';
+					}
+					
+					// Get allocated boxes for this warehouse
+					var allocatedBoxes = 0;
+					if (window.designBoxesMap && window.designBoxesMap[warehouseId] && window.designBoxesMap[warehouseId][designId] !== undefined) {
+						allocatedBoxes = parseInt(window.designBoxesMap[warehouseId][designId]) || 0;
+					}
+					// If no custom allocation, show 0 (not total boxes)
+					
+					designsTableHtml += '<tr>';
+					designsTableHtml += '<td style="padding: 6px;">' + (size || '-') + '</td>';
+					designsTableHtml += '<td style="padding: 6px;">' + (finish || '-') + '</td>';
+					designsTableHtml += '<td style="padding: 6px;">' + designName + '</td>';
+					designsTableHtml += '<td style="padding: 6px; text-align: right; font-weight: 600;">' + allocatedBoxes + '</td>';
+					designsTableHtml += '</tr>';
 				}
 			});
 			
+			designsTableHtml += '</tbody>';
+			designsTableHtml += '</table>';
+			designsTableHtml += '</div>';
+			
 			previewHtml += '<tr>';
-			previewHtml += '<td><strong>' + warehouseName + '</strong></td>';
-			previewHtml += '<td>' + (designNames.length > 0 ? designNames.join(', ') : 'None') + '</td>';
+			previewHtml += '<td style="vertical-align: top;"><strong>' + warehouseName + '</strong></td>';
+			previewHtml += '<td style="vertical-align: top; padding: 10px;">' + designsTableHtml + '</td>';
 			previewHtml += '</tr>';
 		}
 	});
@@ -1043,20 +1446,314 @@ function updateDesignPreview() {
 	}
 }
 
-// Handle design selection change
-$(document).on('change', '.design-multiselect', function() {
-	var $select = $(this);
-	var warehouseId = $select.data('warehouse-id');
-	var selectedDesigns = $select.val() || [];
+// Function to update design toggle text
+function updateDesignToggleText(warehouseId) {
+	var $wrapper = $('.design-dropdown-wrapper[data-warehouse-id="' + warehouseId + '"]');
+	var selectedDesigns = window.selectedDesignsMap[warehouseId] || [];
+	var $toggleText = $wrapper.find('.design-selected-text');
 	
-	// Update selected designs map
+	if (selectedDesigns.length > 0) {
+		$toggleText.html('<span class="design-selected-count">' + selectedDesigns.length + ' design(s) selected</span>');
+		$toggleText.css('color', '#333');
+	} else {
+		$toggleText.html('Click to select designs...');
+		$toggleText.css('color', '#999');
+	}
+}
+
+// Handle dropdown toggle click
+$(document).on('click', '.design-dropdown-toggle', function(e) {
+	e.stopPropagation();
+	var $wrapper = $(this).closest('.design-dropdown-wrapper');
+	var $menu = $wrapper.find('.design-dropdown-menu');
+	
+	// Close all other dropdowns
+	$('.design-dropdown-menu').not($menu).hide();
+	
+	// Toggle current dropdown
+	$menu.toggle();
+});
+
+// Close dropdown when clicking outside
+$(document).on('click', function(e) {
+	if (!$(e.target).closest('.design-dropdown-wrapper').length) {
+		$('.design-dropdown-menu').hide();
+	}
+});
+
+// Handle table row click
+$(document).on('click', '.design-table-row', function(e) {
+	if ($(e.target).is('input[type="checkbox"]') || $(e.target).is('input[type="number"]') || $(e.target).closest('input[type="number"]').length) {
+		return; // Let checkbox and input handle their own clicks
+	}
+	
+	var $row = $(this);
+	var designId = $row.data('design-id').toString();
+	var warehouseId = $row.data('warehouse-id');
+	var $checkbox = $row.find('.design-checkbox');
+	var maxBoxes = parseInt($row.data('max-boxes')) || 0;
+	
+	// Check if checkbox is disabled or if max boxes is 0
+	if ($checkbox.prop('disabled') || (maxBoxes === 0 && !$checkbox.prop('checked'))) {
+		return; // Don't allow selection if no boxes available
+	}
+	
+	// Toggle checkbox
+	$checkbox.prop('checked', !$checkbox.prop('checked'));
+	
+	// Update selection
+	var selectedDesigns = window.selectedDesignsMap[warehouseId] || [];
+	var index = selectedDesigns.indexOf(designId);
+	
+	if ($checkbox.prop('checked')) {
+		if (index === -1) {
+			selectedDesigns.push(designId);
+		}
+		$row.addClass('selected');
+		} else {
+			if (index !== -1) {
+				selectedDesigns.splice(index, 1);
+			}
+			$row.removeClass('selected');
+			
+			// Clear boxes input when deselected (but don't remove from map yet, let user decide)
+			var $input = $row.find('.design-boxes-input');
+			if ($input.length > 0) {
+				$input.val(0);
+			}
+			
+			// Remove boxes allocation when deselected
+			if (window.designBoxesMap && window.designBoxesMap[warehouseId] && window.designBoxesMap[warehouseId][designId] !== undefined) {
+				delete window.designBoxesMap[warehouseId][designId];
+			}
+		}
+	
 	window.selectedDesignsMap[warehouseId] = selectedDesigns;
 	
-	// Update all dropdowns to reflect available designs
-	updateDesignDropdowns();
+	// Update hidden input
+	var $hiddenInput = $row.closest('.design-dropdown-wrapper').find('.design-multiselect');
+	$hiddenInput.val(selectedDesigns.join(','));
 	
-	// Update preview
-	updateDesignPreview();
+	// Update toggle text
+	updateDesignToggleText(warehouseId);
+	
+	// Refresh all dropdowns to update remaining boxes
+	setTimeout(function() {
+		populateDesignTables();
+		updateDesignPreview();
+	}, 100);
+});
+
+// Handle checkbox click directly
+$(document).on('click', '.design-checkbox', function(e) {
+	e.stopPropagation();
+	var $checkbox = $(this);
+	var $row = $checkbox.closest('.design-table-row');
+	var designId = $row.data('design-id').toString();
+	var warehouseId = $row.data('warehouse-id');
+	var maxBoxes = parseInt($row.data('max-boxes')) || 0;
+	
+	// Check if checkbox is disabled or if max boxes is 0 and trying to check
+	if ($checkbox.prop('disabled') || (maxBoxes === 0 && $checkbox.prop('checked'))) {
+		$checkbox.prop('checked', false);
+		return; // Don't allow selection if no boxes available
+	}
+	
+	var selectedDesigns = window.selectedDesignsMap[warehouseId] || [];
+	var index = selectedDesigns.indexOf(designId);
+	
+	if ($checkbox.prop('checked')) {
+		if (index === -1) {
+			selectedDesigns.push(designId);
+		}
+		$row.addClass('selected');
+		} else {
+			if (index !== -1) {
+				selectedDesigns.splice(index, 1);
+			}
+			$row.removeClass('selected');
+			
+			// Clear boxes input when deselected (but don't remove from map yet, let user decide)
+			var $input = $row.find('.design-boxes-input');
+			if ($input.length > 0) {
+				$input.val(0);
+			}
+			
+			// Remove boxes allocation when deselected
+			if (window.designBoxesMap && window.designBoxesMap[warehouseId] && window.designBoxesMap[warehouseId][designId] !== undefined) {
+				delete window.designBoxesMap[warehouseId][designId];
+			}
+		}
+	
+	window.selectedDesignsMap[warehouseId] = selectedDesigns;
+	
+	// Update hidden input
+	var $hiddenInput = $row.closest('.design-dropdown-wrapper').find('.design-multiselect');
+	$hiddenInput.val(selectedDesigns.join(','));
+	
+	// Update toggle text
+	updateDesignToggleText(warehouseId);
+	
+	// Refresh all dropdowns to update remaining boxes
+	setTimeout(function() {
+		populateDesignTables();
+		updateDesignPreview();
+	}, 100);
+});
+
+// Handle select all checkbox
+$(document).on('click', '.select-all-designs', function(e) {
+	e.stopPropagation();
+	var $checkbox = $(this);
+	var $wrapper = $(this).closest('.design-dropdown-wrapper');
+	var warehouseId = $wrapper.data('warehouse-id');
+	// Only select enabled rows with boxes > 0
+	var $rows = $wrapper.find('.design-table-row').filter(function() {
+		var $row = $(this);
+		var $cb = $row.find('.design-checkbox');
+		var maxBoxes = parseInt($row.data('max-boxes')) || 0;
+		return !$cb.prop('disabled') && maxBoxes > 0;
+	});
+	var selectedDesigns = window.selectedDesignsMap[warehouseId] || [];
+	
+	if ($checkbox.prop('checked')) {
+		$rows.each(function() {
+			var $row = $(this);
+			var designId = $row.data('design-id').toString();
+			var maxBoxes = parseInt($row.data('max-boxes')) || 0;
+			// Only select if boxes > 0
+			if (maxBoxes > 0 && selectedDesigns.indexOf(designId) === -1) {
+				selectedDesigns.push(designId);
+			}
+			$row.find('.design-checkbox').prop('checked', true);
+			$row.addClass('selected');
+		});
+	} else {
+		$rows.each(function() {
+			var $row = $(this);
+			var designId = $row.data('design-id').toString();
+			var index = selectedDesigns.indexOf(designId);
+			if (index !== -1) {
+				selectedDesigns.splice(index, 1);
+			}
+			$row.find('.design-checkbox').prop('checked', false);
+			$row.removeClass('selected');
+			
+			// Remove boxes allocation when deselected
+			if (window.designBoxesMap && window.designBoxesMap[warehouseId] && window.designBoxesMap[warehouseId][designId] !== undefined) {
+				delete window.designBoxesMap[warehouseId][designId];
+			}
+		});
+	}
+	
+	window.selectedDesignsMap[warehouseId] = selectedDesigns;
+	
+	// Update hidden input
+	var $hiddenInput = $wrapper.find('.design-multiselect');
+	$hiddenInput.val(selectedDesigns.join(','));
+	
+	// Update toggle text
+	updateDesignToggleText(warehouseId);
+	
+	// Refresh all dropdowns to update remaining boxes
+	setTimeout(function() {
+		populateDesignTables();
+		updateDesignPreview();
+	}, 100);
+});
+
+// Handle boxes input change
+$(document).on('change blur input', '.design-boxes-input', function(e) {
+	e.stopPropagation();
+	var $input = $(this);
+	var $row = $input.closest('.design-table-row');
+	var designId = $input.data('design-id').toString();
+	var warehouseId = $input.data('warehouse-id');
+				// Get max boxes for this warehouse (remaining + current allocation)
+				var maxBoxes = parseInt($input.data('max-boxes')) || parseInt($row.data('max-boxes')) || 0;
+				var remainingBoxes = parseInt($input.data('remaining-boxes')) || parseInt($row.data('remaining-boxes')) || 0;
+				var currentAllocated = 0;
+				if (window.designBoxesMap && window.designBoxesMap[warehouseId] && window.designBoxesMap[warehouseId][designId] !== undefined) {
+					currentAllocated = parseInt(window.designBoxesMap[warehouseId][designId]) || 0;
+				}
+				
+				var boxesValue = Math.round(parseFloat($input.val()) || 0);
+				var $errorMsg = $row.find('.boxes-error-message');
+				
+				// Remove previous error styling
+				$input.removeClass('has-error');
+				$errorMsg.hide();
+				
+				// Ensure non-negative and integer
+				if (boxesValue < 0 || isNaN(boxesValue)) {
+					boxesValue = 0;
+					$input.val(0);
+				} else {
+					// Round to integer and update input value
+					boxesValue = Math.round(boxesValue);
+					$input.val(boxesValue);
+				}
+				
+				// Initialize boxes map if needed
+				if (!window.designBoxesMap[warehouseId]) {
+					window.designBoxesMap[warehouseId] = {};
+				}
+				
+				// Store the new value temporarily to recalculate remaining boxes correctly
+				var oldValue = window.designBoxesMap[warehouseId][designId] || 0;
+				if (boxesValue > 0) {
+					window.designBoxesMap[warehouseId][designId] = boxesValue;
+				} else {
+					// Remove from map if 0
+					if (window.designBoxesMap[warehouseId][designId] !== undefined) {
+						delete window.designBoxesMap[warehouseId][designId];
+					}
+				}
+				
+				// Recalculate max boxes AFTER storing new value (remaining + current allocation)
+				var newRemaining = getRemainingBoxes(designId, warehouseId);
+				var newCurrentAllocated = boxesValue;
+				var newMaxBoxes = newRemaining + newCurrentAllocated;
+				
+				// Validate: boxes cannot exceed max boxes
+				if (boxesValue > newMaxBoxes) {
+					// Restore old value if validation fails
+					if (oldValue > 0) {
+						window.designBoxesMap[warehouseId][designId] = oldValue;
+					} else {
+						delete window.designBoxesMap[warehouseId][designId];
+					}
+					
+					boxesValue = newMaxBoxes;
+					$input.val(newMaxBoxes);
+					$input.addClass('has-error');
+					$errorMsg.text('Maximum allowed: ' + newMaxBoxes + ' boxes').show();
+					
+					// Show error for 3 seconds then hide
+					setTimeout(function() {
+						$input.removeClass('has-error');
+						$errorMsg.fadeOut();
+					}, 3000);
+					
+					// Store corrected value
+					if (boxesValue > 0) {
+						window.designBoxesMap[warehouseId][designId] = boxesValue;
+					}
+				}
+				
+				// Update the row's data attribute for reference
+				$row.attr('data-custom-boxes', boxesValue);
+				
+				// Refresh all warehouse tables to update remaining boxes
+				setTimeout(function() {
+					populateDesignTables();
+					updateDesignPreview();
+				}, 100);
+});
+
+// Prevent row click when clicking on input
+$(document).on('click', '.design-boxes-input', function(e) {
+	e.stopPropagation();
 });
 
 // Handle Next button click - move to next warehouse form
@@ -1071,9 +1768,56 @@ $(document).on('click', '.btn-next-warehouse', function() {
 		return false;
 	}
 	
-	// Get selected designs from current form
+	// Validate boxes values for current warehouse
 	var currentWarehouseId = currentForm.data('warehouse-id');
-	var currentSelected = currentForm.find('.design-multiselect').val() || [];
+	var selectedValue = currentForm.find('.design-multiselect').val() || '';
+	var currentSelected = selectedValue ? selectedValue.split(',') : [];
+	
+	// Check if any designs are selected
+	if (currentSelected.length === 0) {
+		alert("Please select at least one design before proceeding.");
+		currentForm.find('.design-dropdown-toggle').click();
+		return false;
+	}
+	
+	// Check if any boxes exceed max or are 0
+	var hasInvalidBoxes = false;
+	var invalidDesigns = [];
+	$.each(currentSelected, function(index, designId) {
+		var $row = currentForm.find('.design-table-row[data-design-id="' + designId + '"]');
+		if ($row.length > 0) {
+			var $input = $row.find('.design-boxes-input');
+			var maxBoxes = parseInt($input.data('max-boxes')) || parseInt($row.data('max-boxes')) || 0;
+			var enteredBoxes = parseInt($input.val()) || 0;
+			
+			if (enteredBoxes === 0) {
+				hasInvalidBoxes = true;
+				var designName = $row.find('td').eq(3).text() || 'Design';
+				invalidDesigns.push(designName + ' (Boxes: 0 - Please enter box quantity)');
+				
+				// Highlight the input
+				$input.addClass('has-error');
+				$row.find('.boxes-error-message').text('Please enter box quantity').show();
+			} else if (enteredBoxes > maxBoxes) {
+				hasInvalidBoxes = true;
+				var designName = $row.find('td').eq(3).text() || 'Design';
+				invalidDesigns.push(designName + ' (Max: ' + maxBoxes + ')');
+				
+				// Highlight the input
+				$input.addClass('has-error');
+				$row.find('.boxes-error-message').text('Maximum allowed: ' + maxBoxes).show();
+			}
+		}
+	});
+	
+	if (hasInvalidBoxes) {
+		var errorMsg = "Please fix the following issues:\n\n" + invalidDesigns.join('\n');
+		alert(errorMsg);
+		// Open the dropdown to show the user
+		currentForm.find('.design-dropdown-toggle').click();
+		return false;
+	}
+	
 	window.selectedDesignsMap[currentWarehouseId] = currentSelected;
 	
 	// Update dropdowns before showing next form
@@ -1093,18 +1837,83 @@ $(document).on('submit', '.warehouse-form', function(event) {
 	event.preventDefault();
 	
 	var form = $(this);
-	if (!form[0].checkValidity()) {
-		form[0].reportValidity();
+	
+	var warehouse_id = form.data('warehouse-id');
+	var selected_designs_value = form.find('.design-multiselect').val() || '';
+	var selected_designs = selected_designs_value ? selected_designs_value.split(',') : [];
+	var performa_invoice_id = $("#add_to_inventory_performa_invoice_id").val();
+	
+	// Validate that at least one design is selected
+	if (!selected_designs || selected_designs.length === 0) {
+		alert("Please select at least one design.");
+		// Open the dropdown to show the user
+		form.find('.design-dropdown-toggle').click();
 		return false;
 	}
 	
-	var warehouse_id = form.data('warehouse-id');
-	var selected_designs = form.find('.design-multiselect').val();
-	var performa_invoice_id = $("#add_to_inventory_performa_invoice_id").val();
+	// Validate that selected designs have boxes > 0
+	var hasZeroBoxes = false;
+	var zeroBoxDesigns = [];
+	$.each(selected_designs, function(index, designId) {
+		var $row = form.find('.design-table-row[data-design-id="' + designId + '"]');
+		if ($row.length > 0) {
+			var $input = $row.find('.design-boxes-input');
+			var enteredBoxes = parseInt($input.val()) || 0;
+			if (enteredBoxes === 0) {
+				hasZeroBoxes = true;
+				var designName = $row.find('td').eq(3).text() || 'Design';
+				zeroBoxDesigns.push(designName);
+			}
+		}
+	});
 	
-	if (!selected_designs || selected_designs.length === 0) {
-		// Don't call safeUnblock here as safeBlock hasn't been called yet
-		alert("Please select at least one design.");
+	if (hasZeroBoxes) {
+		var errorMsg = "Some selected designs have 0 boxes allocated. Please enter box quantities:\n\n" + zeroBoxDesigns.join('\n');
+		alert(errorMsg);
+		form.find('.design-dropdown-toggle').click();
+		return false;
+	}
+	
+	// Validate boxes values - ensure none exceed total boxes
+	var hasInvalidBoxes = false;
+	var invalidDesigns = [];
+	$('.warehouse-form').each(function() {
+		var wForm = $(this);
+		var wId = wForm.data('warehouse-id');
+		var wDesignsValue = wForm.find('.design-multiselect').val() || '';
+		var wDesigns = wDesignsValue ? wDesignsValue.split(',') : [];
+		
+		$.each(wDesigns, function(index, designId) {
+			var $row = wForm.find('.design-table-row[data-design-id="' + designId + '"]');
+			if ($row.length > 0) {
+				var $input = $row.find('.design-boxes-input');
+				var maxBoxes = parseInt($input.data('max-boxes')) || parseInt($row.data('max-boxes')) || 0;
+				var enteredBoxes = parseInt($input.val()) || 0;
+				
+				if (enteredBoxes > maxBoxes) {
+					hasInvalidBoxes = true;
+					// Get design name for error message
+					var designName = $row.find('td').eq(3).text() || 'Design';
+					invalidDesigns.push(designName + ' (Max: ' + maxBoxes + ')');
+					
+					// Highlight the input
+					$input.addClass('has-error');
+					$row.find('.boxes-error-message').text('Maximum allowed: ' + maxBoxes).show();
+				}
+			}
+		});
+	});
+	
+	if (hasInvalidBoxes) {
+		var errorMsg = "Some designs have box quantities exceeding the maximum allowed:\n\n" + invalidDesigns.join('\n');
+		alert(errorMsg);
+		// Open the dropdown to show the user
+		form.find('.design-dropdown-toggle').click();
+		return false;
+	}
+	
+	if (!form[0].checkValidity()) {
+		form[0].reportValidity();
 		return false;
 	}
 	
@@ -1113,12 +1922,43 @@ $(document).on('submit', '.warehouse-form', function(event) {
 	$('.warehouse-form').each(function() {
 		var wForm = $(this);
 		var wId = wForm.data('warehouse-id');
-		var wDesigns = wForm.find('.design-multiselect').val();
+		var wDesignsValue = wForm.find('.design-multiselect').val() || '';
+		var wDesigns = wDesignsValue ? wDesignsValue.split(',') : [];
 		var wNotes = wForm.find('.warehouse-notes').val() || '';
 		if (wDesigns && wDesigns.length > 0) {
+			// Collect design data with custom box quantities
+			var designData = [];
+			$.each(wDesigns, function(index, designId) {
+				var designInfo = {
+					design_id: designId,
+					quantity: null // Will be set below
+				};
+				
+				// Get custom box quantity from input field or designBoxesMap
+				var $row = wForm.find('.design-table-row[data-design-id="' + designId + '"]');
+				var enteredBoxes = 0;
+				
+				if ($row.length > 0) {
+					var $input = $row.find('.design-boxes-input');
+					enteredBoxes = parseInt($input.val()) || 0;
+				}
+				
+				// Use entered boxes from input, or from designBoxesMap, or 0
+				if (enteredBoxes > 0) {
+					designInfo.quantity = enteredBoxes;
+				} else if (window.designBoxesMap && window.designBoxesMap[wId] && window.designBoxesMap[wId][designId]) {
+					designInfo.quantity = parseInt(window.designBoxesMap[wId][designId]) || 0;
+				} else {
+					designInfo.quantity = 0;
+				}
+				
+				designData.push(designInfo);
+			});
+			
 			allWarehouseData.push({
 				warehouse_id: wId,
 				designs: wDesigns,
+				design_data: designData, // Include design data with quantities
 				notes: wNotes
 			});
 		}

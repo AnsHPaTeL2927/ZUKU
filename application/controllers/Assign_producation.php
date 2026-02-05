@@ -584,12 +584,19 @@ class Assign_producation extends CI_controller
 			}
 			
 			try {
-				// Get unique design names from loading plan (which links to both performa invoice and production sheet)
-				// This ensures we get designs that are actually in the loading plan, not just the original order
-				$sql = "SELECT DISTINCT model.packing_model_id, model.model_name 
+				// Get designs with size, finish, design name, and boxes from loading plan
+				$sql = "SELECT 
+							model.packing_model_id,
+							model.model_name,
+							COALESCE(pro.size_type_mm, '') as size,
+							COALESCE(finish.finish_name, '') as finish,
+							SUM(COALESCE(loading.origanal_boxes, 0)) as boxes
 						FROM tbl_pi_loading_plan as loading
 						INNER JOIN tbl_performa_packing as packing ON packing.performa_packing_id = loading.performa_packing_id
 						INNER JOIN tbl_packing_model as model ON model.packing_model_id = packing.design_id
+						LEFT JOIN tbl_performa_trn as trn ON trn.performa_trn_id = packing.performa_trn_id
+						LEFT JOIN tbl_product as pro ON pro.product_id = trn.product_id
+						LEFT JOIN tbl_finish as finish ON finish.finish_id = packing.finish_id
 						WHERE loading.performa_invoice_id = ? 
 						AND packing.design_id > 0 
 						AND model.model_name IS NOT NULL 
@@ -601,7 +608,8 @@ class Assign_producation extends CI_controller
 							OR loading.orginal_no_of_small_pallet > 0
 							OR loading.origanal_sqm > 0
 						)
-						ORDER BY model.model_name ASC";
+						GROUP BY model.packing_model_id, model.model_name, pro.size_type_mm, finish.finish_name
+						ORDER BY model.model_name ASC, pro.size_type_mm ASC, finish.finish_name ASC";
 				
 				$query = $this->db->query($sql, array($performa_invoice_id));
 				$designs = $query->result();
@@ -609,9 +617,34 @@ class Assign_producation extends CI_controller
 				if (!empty($designs)) {
 					foreach ($designs as $design) {
 						if (!empty($design->model_name)) {
+							// Format: size - finish - design name - boxes
+							$size = !empty($design->size) ? trim($design->size) : '';
+							$finish = !empty($design->finish) ? trim($design->finish) : '';
+							$design_name = trim($design->model_name);
+							$boxes_value = isset($design->boxes) ? intval($design->boxes) : 0;
+							$boxes = number_format($boxes_value, 0, '.', '');
+							
+							// Build display name in format: size - finish - design name - boxes
+							$display_name = '';
+							if (!empty($size)) {
+								$display_name .= $size;
+							}
+							if (!empty($finish)) {
+								$display_name .= ($display_name ? ' - ' : '') . $finish;
+							}
+							if (!empty($design_name)) {
+								$display_name .= ($display_name ? ' - ' : '') . $design_name;
+							}
+							// Always show boxes (even if 0)
+							$display_name .= ($display_name ? ' - ' : '') . $boxes;
+							
 							$response[] = array(
 								'id' => $design->packing_model_id,
-								'name' => $design->model_name
+								'name' => $display_name,
+								'size' => $size,
+								'finish' => $finish,
+								'design_name' => $design_name,
+								'boxes' => $boxes
 							);
 						}
 					}
@@ -697,6 +730,22 @@ class Assign_producation extends CI_controller
 				$warehouse_id = isset($warehouse['warehouse_id']) ? intval($warehouse['warehouse_id']) : 0;
 				$design_ids = isset($warehouse['designs']) && is_array($warehouse['designs']) ? $warehouse['designs'] : array();
 				$notes = isset($warehouse['notes']) ? trim($warehouse['notes']) : '';
+				$design_data = isset($warehouse['design_data']) && is_array($warehouse['design_data']) ? $warehouse['design_data'] : array();
+				
+				// Create a map of design_id => quantity from design_data
+				$design_quantity_map = array();
+				if(!empty($design_data))
+				{
+					foreach($design_data as $design_info)
+					{
+						$d_id = isset($design_info['design_id']) ? intval($design_info['design_id']) : 0;
+						$d_quantity = isset($design_info['quantity']) ? intval($design_info['quantity']) : null;
+						if($d_id > 0 && $d_quantity !== null)
+						{
+							$design_quantity_map[$d_id] = $d_quantity;
+						}
+					}
+				}
 				
 				if(empty($warehouse_id) || empty($design_ids))
 				{
@@ -736,8 +785,16 @@ class Assign_producation extends CI_controller
 						continue;
 					}
 					
-					// Get quantity from loading plan for this design
-					$quantity = $this->get_design_quantity_from_loading_plan($performa_invoice_id, $design_id);
+					// Get quantity - use custom quantity if provided, otherwise get from loading plan
+					if(isset($design_quantity_map[$design_id]) && $design_quantity_map[$design_id] >= 0)
+					{
+						$quantity = $design_quantity_map[$design_id];
+					}
+					else
+					{
+						// Get quantity from loading plan for this design
+						$quantity = $this->get_design_quantity_from_loading_plan($performa_invoice_id, $design_id);
+					}
 					
 					// Get first loading plan ID for this design (optional)
 					$pi_loading_plan_id = $this->get_first_loading_plan_id($performa_invoice_id, $design_id);
@@ -811,7 +868,7 @@ class Assign_producation extends CI_controller
 		$query = $this->db->get();
 		$result = $query->row();
 		
-		$quantity = !empty($result->origanal_boxes) ? floatval($result->origanal_boxes) : 0;
+		$quantity = !empty($result->origanal_boxes) ? intval($result->origanal_boxes) : 0;
 		
 		// If no boxes, try to get SQM
 		if($quantity == 0)
@@ -826,7 +883,7 @@ class Assign_producation extends CI_controller
 			$query = $this->db->get();
 			$result = $query->row();
 			
-			$quantity = !empty($result->origanal_sqm) ? floatval($result->origanal_sqm) : 0;
+			$quantity = !empty($result->origanal_sqm) ? intval($result->origanal_sqm) : 0;
 		}
 		
 		return $quantity;
