@@ -831,6 +831,15 @@ class Assign_producation extends CI_controller
 			
 			if($success_count > 0)
 			{
+				// Record that this PI was added to stock (for Stock module – which invoice goes to stock)
+				if ($this->db->table_exists('tbl_pi_stock_entry')) {
+					$this->pinv->insert_pi_stock_entry(array(
+						'performa_invoice_id' => $performa_invoice_id,
+						'added_at'           => date('Y-m-d H:i:s'),
+						'added_by'           => $this->session->id,
+						'notes'              => NULL
+					));
+				}
 				$row['res'] = 1;
 				$row['msg'] = "Inventory saved successfully. " . $success_count . " record(s) added.";
 				if($error_count > 0)

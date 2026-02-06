@@ -1317,6 +1317,20 @@ public function loading_data($performa_invoice_id,$supplier_id,$export_time)
 		return $this->db->insert_id();
 	}
 
+	/**
+	 * Record that a PI was added to stock (when "Add to Inventory" is triggered).
+	 * @param array $data keys: performa_invoice_id, added_at, added_by, notes (optional)
+	 * @return int|bool insert_id or false
+	 */
+	public function insert_pi_stock_entry($data)
+	{
+		if (empty($data['performa_invoice_id'])) {
+			return false;
+		}
+		$this->db->insert('tbl_pi_stock_entry', $data);
+		return $this->db->insert_id();
+	}
+
 	public function update_exportcointainer($con_entry,$performa_invoice_id,$data)
 
 	{

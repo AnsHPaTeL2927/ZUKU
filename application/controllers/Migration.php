@@ -178,6 +178,90 @@ class Migration extends CI_Controller {
         echo '<p><a href="' . base_url() . '">Go to Home</a></p>';
     }
 
+    /**
+     * Run only the add_new_menu_entry migration (adds menu entry).
+     * Use this to add the Stock menu entry directly.
+     */
+    public function run_menu_entry()
+    {
+        $this->load->database();
+        $this->load->library('migration'); // defines CI_Migration and loads dbforge
+        $this->load->dbforge();
+
+        $migration_file = APPPATH . 'migrations/20260206120000_add_new_menu_entry.php';
+        if (!is_file($migration_file)) {
+            show_error('Menu entry migration file not found.');
+        }
+
+        include_once($migration_file);
+        if (!class_exists('Migration_Add_new_menu_entry', FALSE)) {
+            show_error('Menu entry migration class not found.');
+        }
+
+        try {
+            $migration = new Migration_Add_new_menu_entry();
+            $migration->up();
+
+            // Check if menu was inserted
+            $menu_check = $this->db->get_where('tbl_menu', array('url_name' => 'stock'))->row();
+            if ($menu_check) {
+                // Update migrations table so index/latest won't re-run this
+                $this->db->where('version <', '20260206120000');
+                $this->db->update('migrations', array('version' => '20260206120000'));
+
+                echo '<h1>Menu entry migration completed successfully!</h1>';
+                echo '<p>Menu entry "Stock" has been added to tbl_menu.</p>';
+                echo '<p>Menu ID: ' . $menu_check->menu_id . '</p>';
+                echo '<p>Permission has been added for user type 1.</p>';
+            } else {
+                echo '<h1>Migration ran but menu entry not found!</h1>';
+                echo '<p>Please check database errors.</p>';
+                if ($this->db->error()['code'] != 0) {
+                    echo '<p>Database Error: ' . $this->db->error()['message'] . '</p>';
+                }
+            }
+        } catch (Exception $e) {
+            echo '<h1>Migration Error!</h1>';
+            echo '<p>Error: ' . htmlspecialchars($e->getMessage()) . '</p>';
+            if ($this->db->error()['code'] != 0) {
+                echo '<p>Database Error: ' . $this->db->error()['message'] . '</p>';
+            }
+        }
+
+        echo '<p><a href="' . base_url() . '">Go to Home</a></p>';
+    }
+
+    /**
+     * Run the PI stock entry and stock calculation tables migration.
+     * Creates tbl_pi_stock_entry and tbl_stock_calculation.
+     */
+    public function run_pi_stock_tables()
+    {
+        $this->load->database();
+        $this->load->library('migration');
+        $this->load->dbforge();
+
+        $migration_file = APPPATH . 'migrations/20260206140000_create_pi_stock_and_calculation_tables.php';
+        if (!is_file($migration_file)) {
+            show_error('PI stock tables migration file not found.');
+        }
+
+        include_once($migration_file);
+        if (!class_exists('Migration_Create_pi_stock_and_calculation_tables', FALSE)) {
+            show_error('Migration class Migration_Create_pi_stock_and_calculation_tables not found.');
+        }
+
+        $migration = new Migration_Create_pi_stock_and_calculation_tables();
+        $migration->up();
+
+        $this->db->where('version <', '20260206140000');
+        $this->db->update('migrations', array('version' => '20260206140000'));
+
+        echo '<h1>PI stock tables migration completed successfully!</h1>';
+        echo '<p>Tables created: tbl_pi_stock_entry, tbl_stock_calculation.</p>';
+        echo '<p><a href="' . base_url() . '">Go to Home</a></p>';
+    }
+
     public function remove_from_performa_invoice()
     {
         // Remove fields from tbl_performa_invoice (they were added by mistake)
