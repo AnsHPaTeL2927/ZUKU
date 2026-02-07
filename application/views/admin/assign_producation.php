@@ -1172,6 +1172,7 @@ function open_add_to_inventory_modal(performa_invoice_id) {
 }
 
 // Function to calculate remaining boxes for a design across all warehouses
+// Includes: (1) already-saved allocations from DB (design.allocated_boxes), (2) current-session allocations (designBoxesMap)
 // If warehouseId is provided, excludes that warehouse's allocation from the calculation
 function getRemainingBoxes(designId, excludeWarehouseId) {
 	// Get total boxes for this design
@@ -1192,11 +1193,13 @@ function getRemainingBoxes(designId, excludeWarehouseId) {
 	
 	var totalBoxes = parseInt(boxes) || 0;
 	
-	// Calculate allocated boxes across all warehouses (excluding specified warehouse if provided)
-	var allocatedBoxes = 0;
+	// Start with already-allocated from DB (from previous Add to Inventory saves)
+	var allocatedBoxes = parseInt(design.allocated_boxes) || 0;
+	
+	// Add allocations from current session (other warehouses in this form)
 	if (window.designBoxesMap) {
 		$.each(window.designBoxesMap, function(warehouseId, designMap) {
-			// Skip excluded warehouse
+			// Skip excluded warehouse (e.g. current warehouse when calculating its max)
 			if (excludeWarehouseId && warehouseId.toString() === excludeWarehouseId.toString()) {
 				return;
 			}
@@ -1206,7 +1209,7 @@ function getRemainingBoxes(designId, excludeWarehouseId) {
 		});
 	}
 	
-	// Return remaining boxes
+	// Return remaining boxes (do not show design if fully allocated)
 	var remaining = totalBoxes - allocatedBoxes;
 	return remaining > 0 ? remaining : 0;
 }
@@ -1409,12 +1412,19 @@ function updateDesignPreview() {
 						boxes = design.boxes || '0';
 					}
 					
-					// Get allocated boxes for this warehouse
+					// Get allocated boxes for this warehouse (from designBoxesMap, or fallback to input value)
 					var allocatedBoxes = 0;
 					if (window.designBoxesMap && window.designBoxesMap[warehouseId] && window.designBoxesMap[warehouseId][designId] !== undefined) {
 						allocatedBoxes = parseInt(window.designBoxesMap[warehouseId][designId]) || 0;
 					}
-					// If no custom allocation, show 0 (not total boxes)
+					if (allocatedBoxes === 0) {
+						// Fallback: read from input in case designBoxesMap not yet initialized
+						var $row = $('.design-table-row[data-design-id="' + designId + '"][data-warehouse-id="' + warehouseId + '"]');
+						if ($row.length) {
+							var $input = $row.find('.design-boxes-input');
+							allocatedBoxes = parseInt($input.val()) || parseInt($row.data('max-boxes')) || 0;
+						}
+					}
 					
 					designsTableHtml += '<tr>';
 					designsTableHtml += '<td style="padding: 6px;">' + (size || '-') + '</td>';
@@ -1510,6 +1520,13 @@ $(document).on('click', '.design-table-row', function(e) {
 			selectedDesigns.push(designId);
 		}
 		$row.addClass('selected');
+		// Initialize designBoxesMap with input value so preview shows correct count (not 0)
+		var $input = $row.find('.design-boxes-input');
+		var inputVal = $input.length ? (parseInt($input.val()) || parseInt($row.data('max-boxes')) || maxBoxes) : maxBoxes;
+		if (inputVal > 0) {
+			if (!window.designBoxesMap[warehouseId]) window.designBoxesMap[warehouseId] = {};
+			window.designBoxesMap[warehouseId][designId] = inputVal;
+		}
 		} else {
 			if (index !== -1) {
 				selectedDesigns.splice(index, 1);
@@ -1567,6 +1584,13 @@ $(document).on('click', '.design-checkbox', function(e) {
 			selectedDesigns.push(designId);
 		}
 		$row.addClass('selected');
+		// Initialize designBoxesMap with input value so preview shows correct count (not 0)
+		var $input = $row.find('.design-boxes-input');
+		var inputVal = $input.length ? (parseInt($input.val()) || parseInt($row.data('max-boxes')) || maxBoxes) : maxBoxes;
+		if (inputVal > 0) {
+			if (!window.designBoxesMap[warehouseId]) window.designBoxesMap[warehouseId] = {};
+			window.designBoxesMap[warehouseId][designId] = inputVal;
+		}
 		} else {
 			if (index !== -1) {
 				selectedDesigns.splice(index, 1);
@@ -1627,6 +1651,13 @@ $(document).on('click', '.select-all-designs', function(e) {
 			}
 			$row.find('.design-checkbox').prop('checked', true);
 			$row.addClass('selected');
+			// Initialize designBoxesMap with input value so preview shows correct count
+			var $input = $row.find('.design-boxes-input');
+			var inputVal = $input.length ? (parseInt($input.val()) || maxBoxes) : maxBoxes;
+			if (inputVal > 0) {
+				if (!window.designBoxesMap[warehouseId]) window.designBoxesMap[warehouseId] = {};
+				window.designBoxesMap[warehouseId][designId] = inputVal;
+			}
 		});
 	} else {
 		$rows.each(function() {

@@ -584,19 +584,33 @@ class Assign_producation extends CI_controller
 			}
 			
 			try {
-				// Get designs with size, finish, design name, and boxes from loading plan
+				// Get designs with size, finish, design name, boxes from loading plan,
+				// and allocated_boxes from tbl_warehouse_inventory (already saved allocations)
+				$inv_subquery = '';
+				if ($this->db->table_exists('tbl_warehouse_inventory')) {
+					$inv_subquery = "LEFT JOIN (
+							SELECT design_id, SUM(quantity) as allocated_boxes
+							FROM tbl_warehouse_inventory
+							WHERE performa_invoice_id = " . intval($performa_invoice_id) . "
+							GROUP BY design_id
+						) as inv ON inv.design_id = packing.design_id";
+				} else {
+					$inv_subquery = "LEFT JOIN (SELECT 1 as design_id, 0 as allocated_boxes WHERE 1=0) as inv ON 1=1";
+				}
 				$sql = "SELECT 
 							model.packing_model_id,
 							model.model_name,
 							COALESCE(pro.size_type_mm, '') as size,
 							COALESCE(finish.finish_name, '') as finish,
-							SUM(COALESCE(loading.origanal_boxes, 0)) as boxes
+							SUM(COALESCE(loading.origanal_boxes, 0)) as boxes,
+							MAX(COALESCE(inv.allocated_boxes, 0)) as allocated_boxes
 						FROM tbl_pi_loading_plan as loading
 						INNER JOIN tbl_performa_packing as packing ON packing.performa_packing_id = loading.performa_packing_id
 						INNER JOIN tbl_packing_model as model ON model.packing_model_id = packing.design_id
 						LEFT JOIN tbl_performa_trn as trn ON trn.performa_trn_id = packing.performa_trn_id
 						LEFT JOIN tbl_product as pro ON pro.product_id = trn.product_id
 						LEFT JOIN tbl_finish as finish ON finish.finish_id = packing.finish_id
+						" . $inv_subquery . "
 						WHERE loading.performa_invoice_id = ? 
 						AND packing.design_id > 0 
 						AND model.model_name IS NOT NULL 
@@ -622,6 +636,7 @@ class Assign_producation extends CI_controller
 							$finish = !empty($design->finish) ? trim($design->finish) : '';
 							$design_name = trim($design->model_name);
 							$boxes_value = isset($design->boxes) ? intval($design->boxes) : 0;
+							$allocated = isset($design->allocated_boxes) ? intval($design->allocated_boxes) : 0;
 							$boxes = number_format($boxes_value, 0, '.', '');
 							
 							// Build display name in format: size - finish - design name - boxes
@@ -644,7 +659,8 @@ class Assign_producation extends CI_controller
 								'size' => $size,
 								'finish' => $finish,
 								'design_name' => $design_name,
-								'boxes' => $boxes
+								'boxes' => $boxes,
+								'allocated_boxes' => $allocated
 							);
 						}
 					}
