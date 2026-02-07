@@ -94,20 +94,36 @@ $this->view('lib/header');
 								</div>
 								<div class="col-md-2">
 									<label class="control-label"><strong>PI NO.</strong></label>
-									<select class="form-control" id="pi_no">
+									<select class="form-control" id="pi_no" name="pi_no">
 										<option value="">All PI Numbers</option>
-										<option value="PI-001">PI-001</option>
-										<option value="PI-002">PI-002</option>
-										<option value="PI-003">PI-003</option>
+										<?php
+										$pi_numbers = isset($pi_numbers) && is_array($pi_numbers) ? $pi_numbers : array();
+										$selected_pi = isset($selected_pi) ? $selected_pi : '';
+										foreach ($pi_numbers as $pi) {
+											$inv_no = isset($pi->invoice_no) ? htmlspecialchars($pi->invoice_no) : '';
+											if ($inv_no === '') continue;
+											$sel = ($selected_pi !== '' && $selected_pi === $inv_no) ? ' selected="selected"' : '';
+											echo '<option value="' . htmlspecialchars($inv_no) . '"' . $sel . '>' . htmlspecialchars($inv_no) . '</option>';
+										}
+										?>
 									</select>
 								</div>
 								<div class="col-md-2">
 									<label class="control-label"><strong>LOCATION</strong></label>
-									<select class="form-control" id="location">
+									<select class="form-control" id="location" name="location">
 										<option value="">All Locations</option>
-										<option value="1">Warehouse 01</option>
-										<option value="2">Warehouse 02</option>
-										<option value="3">Warehouse 03</option>
+										<?php
+										$warehouses = isset($warehouses) && is_array($warehouses) ? $warehouses : array();
+										$selected_warehouse = isset($selected_warehouse) ? $selected_warehouse : '';
+										foreach ($warehouses as $wh) {
+											$wh_id = isset($wh->id) ? (int)$wh->id : 0;
+											$wh_label = isset($wh->name) && trim($wh->name) !== '' ? htmlspecialchars($wh->name) : (isset($wh->warehouse_number) ? 'WareHouse #' . htmlspecialchars($wh->warehouse_number) : 'ID ' . $wh_id);
+											if ($wh_id > 0) {
+												$sel = ($selected_warehouse !== '' && (string)$wh_id === (string)$selected_warehouse) ? ' selected="selected"' : '';
+												echo '<option value="' . $wh_id . '"' . $sel . '>' . $wh_label . '</option>';
+											}
+										}
+										?>
 									</select>
 								</div>
 								<div class="col-md-2">
@@ -130,6 +146,11 @@ $this->view('lib/header');
 					<div class="panel panel-default">
 						<div class="panel-heading">
 							<i class="fa fa-list"></i> Stock List
+							<?php if (!empty($stock_list) && is_array($stock_list)): ?>
+								<span class="text-muted pull-right" style="font-size: 12px; font-weight: normal;">Entries from Add to Inventory (Loading Plan)</span>
+							<?php else: ?>
+								<span class="text-muted pull-right" style="font-size: 12px; font-weight: normal;">Use Add to Inventory in Loading Plan to add PIs to stock</span>
+							<?php endif; ?>
 						</div>
 						<div class="panel-body">
 							<div id="stock_table_loader" class="active">
@@ -146,9 +167,13 @@ $this->view('lib/header');
 											<th>DESIGN NAME</th>
 											<th>SIZE</th>
 											<th>SUPPLIER & COUNTRY</th>
-											<th>WAREHOUSE 01 [M²]</th>
-											<th>WAREHOUSE 02 [M²]</th>
-											<th>WAREHOUSE 03 [M²]</th>
+											<?php
+											$stock_warehouses = isset($stock_warehouses) && is_array($stock_warehouses) ? $stock_warehouses : array();
+											foreach ($stock_warehouses as $wh) {
+												$wh_label = isset($wh->name) && trim($wh->name) !== '' ? htmlspecialchars($wh->name) : (isset($wh->warehouse_number) ? 'WareHouse #' . htmlspecialchars($wh->warehouse_number) : 'WH ' . (int)$wh->id);
+												echo '<th>' . $wh_label . ' [M²]</th>';
+											}
+											?>
 											<th>TOTAL STOCK [M²]</th>
 											<th>TOTAL SALES LAST 6 MONTHS [M²]</th>
 											<th>AVG. MONTHLY SALES [M²]</th>
@@ -168,47 +193,67 @@ $this->view('lib/header');
 									</thead>
 									<tbody>
 										<?php
-										$dummy_data = array(
-											array(1, '25/08/2025', 'PI-001', 'AFF-DK-6012CV', 'AFFYON DARK 120 CA...', '60X120', 'SIYARAM INDIA', 0, 0, 0, 0, 587.52, 97.92, 3.26, 75, 20, 310.08, 0, '2025-11-01', '2025-11-17', 28, 28, 91.39, 'Place Order soon'),
-											array(2, '25/08/2025', 'PI-001', 'AFF-DK-6060SG', 'AFFYON DARK 060 SU...', '60X60', 'SIYARAM INDIA', 0, 0, 0, 0, 1329.48, 221.58, 7.39, 75, 20, 702.05, 0, '2025-11-01', '2025-11-17', 28, 28, 206.92, 'Place Order soon'),
-											array(3, '25/08/2025', 'PI-002', 'ALW-120-MAT', 'ALASKA WHITE 120 M...', '60X120', 'SIYARAM INDIA', 0, 0, 0, 0, 445.20, 74.20, 2.47, 75, 20, 236.05, 0, '2025-11-01', '2025-11-17', 28, 28, 69.16, 'Place Order soon'),
-											array(4, '26/08/2025', 'PI-002', 'ALW-6060-POL', 'ALASKA WHITE 060 PO...', '60X60', 'SIYARAM INDIA', 0, 0, 0, 0, 892.80, 148.80, 4.96, 75, 20, 473.60, 0, '2025-11-01', '2025-11-17', 28, 28, 138.88, 'Place Order soon'),
-											array(5, '26/08/2025', 'PI-003', 'BRC-NR-6012', 'BARCELONA GREY 120...', '60X120', 'SIYARAM INDIA', 0, 0, 0, 0, 720.00, 120.00, 4.00, 75, 20, 380.00, 0, '2025-11-01', '2025-11-17', 28, 28, 112.00, 'Place Order soon'),
-											array(6, '27/08/2025', 'PI-003', 'BRC-NR-6060', 'BARCELONA GREY 060...', '60X60', 'SIYARAM INDIA', 0, 0, 0, 0, 518.40, 86.40, 2.88, 75, 20, 273.60, 0, '2025-11-01', '2025-11-17', 28, 28, 80.64, 'Place Order soon'),
-											array(7, '27/08/2025', 'PI-001', 'CVT-BK-6012', 'CAVATINA BLACK 120...', '60X120', 'SIYARAM INDIA', 0, 0, 0, 0, 655.20, 109.20, 3.64, 75, 20, 345.80, 0, '2025-11-01', '2025-11-17', 28, 28, 101.92, 'Place Order soon'),
-											array(8, '28/08/2025', 'PI-002', 'CVT-BK-6060', 'CAVATINA BLACK 060...', '60X60', 'SIYARAM INDIA', 0, 0, 0, 0, 388.80, 64.80, 2.16, 75, 20, 205.20, 0, '2025-11-01', '2025-11-17', 28, 28, 60.48, 'Place Order soon'),
-										);
-										foreach ($dummy_data as $row) :
-											list($sr, $date, $pi_no, $sku, $design, $size, $supplier, $wh1, $wh2, $wh3, $total_stock, $sales_6m, $avg_monthly, $avg_daily, $lead_time, $safety_days, $rop, $days_cover, $etd, $eta, $days_delivery, $days_out, $lost_sales, $decision) = $row;
+										$stock_list = isset($stock_list) && is_array($stock_list) ? $stock_list : array();
+										if (!empty($stock_list)) {
+											$sr = 1;
+											foreach ($stock_list as $row) {
+												$date = !empty($row->performa_date) ? date('d/m/Y', strtotime($row->performa_date)) : '';
+												$pi_no = isset($row->invoice_no) ? htmlspecialchars($row->invoice_no) : '-';
+												$sku = isset($row->sku_code) && $row->sku_code !== '' ? htmlspecialchars($row->sku_code) : (isset($row->design_id) ? 'D-' . intval($row->design_id) : '-');
+												$design = isset($row->design_name) ? htmlspecialchars($row->design_name) : '-';
+												$size = isset($row->size) ? htmlspecialchars($row->size) : '-';
+												$total_stock = isset($row->total_quantity) ? number_format((float)$row->total_quantity, 2, '.', '') : '0';
+												$total_sales_6m = isset($row->total_sales_6m_sqm) ? number_format((float)$row->total_sales_6m_sqm, 2, '.', '') : '0';
+												$avg_monthly = isset($row->avg_monthly_sales_sqm) ? number_format((float)$row->avg_monthly_sales_sqm, 2, '.', '') : '0';
+												$avg_daily = isset($row->avg_daily_sales_sqm) ? number_format((float)$row->avg_daily_sales_sqm, 2, '.', '') : '0';
+												$lead_time = isset($row->lead_time_days) ? (int)$row->lead_time_days : 0;
+												$safety_stock = isset($row->safety_stock_days) ? (int)$row->safety_stock_days : 0;
+												$reorder_point = isset($row->reorder_point_sqm) ? number_format((float)$row->reorder_point_sqm, 2, '.', '') : '0';
+												$days_coverage = isset($row->days_of_stock_coverage) ? (int)$row->days_of_stock_coverage : 0;
+												$etd = isset($row->etd) && !empty($row->etd) ? date('d/m/Y', strtotime($row->etd)) : '-';
+												$eta = isset($row->eta) && !empty($row->eta) ? date('d/m/Y', strtotime($row->eta)) : '-';
+												$days_until = isset($row->days_until_delivery) ? (int)$row->days_until_delivery : '-';
+												$days_out = isset($row->days_out_of_stock_before_delivery) ? (int)$row->days_out_of_stock_before_delivery : '-';
+												$lost_sales = isset($row->lost_sales_sqm) ? number_format((float)$row->lost_sales_sqm, 2, '.', '') : '0';
 										?>
 											<tr>
-												<td><?= $sr ?></td>
+												<td><?= $sr++ ?></td>
 												<td><?= $date ?></td>
 												<td><?= $pi_no ?></td>
 												<td><?= $sku ?></td>
 												<td><?= $design ?></td>
 												<td><?= $size ?></td>
-												<td><?= $supplier ?></td>
-												<td class="text-right"><?= $wh1 ?></td>
-												<td class="text-right"><?= $wh2 ?></td>
-												<td class="text-right"><?= $wh3 ?></td>
+												<td>-</td>
+												<?php foreach ($stock_warehouses as $wh): $col = 'wh_' . (int)$wh->id; $qty = isset($row->$col) ? number_format((float)$row->$col, 2, '.', '') : '0'; ?>
+												<td class="text-right"><?= $qty ?></td>
+												<?php endforeach; ?>
 												<td class="text-right"><?= $total_stock ?></td>
-												<td class="text-right"><?= $sales_6m ?></td>
+												<td class="text-right"><?= $total_sales_6m ?></td>
 												<td class="text-right"><?= $avg_monthly ?></td>
 												<td class="text-right"><?= $avg_daily ?></td>
 												<td class="text-center"><?= $lead_time ?></td>
-												<td class="text-center"><?= $safety_days ?></td>
-												<td class="text-right"><?= $rop ?></td>
-												<td class="text-center"><?= $days_cover ?></td>
+												<td class="text-center"><?= $safety_stock ?></td>
+												<td class="text-right"><?= $reorder_point ?></td>
+												<td class="text-center"><?= $days_coverage ?></td>
 												<td><?= $etd ?></td>
 												<td><?= $eta ?></td>
-												<td class="text-center"><?= $days_delivery ?></td>
+												<td class="text-center"><?= $days_until ?></td>
 												<td class="text-center"><?= $days_out ?></td>
 												<td class="text-right"><?= $lost_sales ?></td>
-												<td><a href="javascript:;" class="text-primary"><?= $decision ?></a></td>
+												<td><a href="javascript:;" class="text-primary">-</a></td>
 												<td><a href="javascript:;" class="btn btn-default btn-sm"><i class="fa fa-pencil"></i> Edit Stock</a></td>
 											</tr>
-										<?php endforeach; ?>
+										<?php
+											}
+										} else {
+											$colspan = 8 + count($stock_warehouses) + 14;
+										?>
+											<tr>
+												<td colspan="<?= $colspan ?>" class="text-center text-muted" style="padding: 24px;">No stock entries. Use <strong>Add to Inventory</strong> in Loading Plan to add PIs to stock.</td>
+											</tr>
+										<?php
+										}
+										?>
 									</tbody>
 								</table>
 							</div>
@@ -250,6 +295,24 @@ $this->view('lib/footer');
 			$('#stock_table tbody tr').filter(function() {
 				$(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
 			});
+		});
+		// PI NO. filter: reload page with selected PI
+		$('#pi_no').on('change', function() {
+			var params = [];
+			var pi = $(this).val();
+			var loc = $('#location').val();
+			if (pi) params.push('pi_no=' + encodeURIComponent(pi));
+			if (loc) params.push('location=' + encodeURIComponent(loc));
+			window.location.href = '<?= base_url() ?>stock' + (params.length ? '?' + params.join('&') : '');
+		});
+		// LOCATION filter: reload page with selected warehouse (warehouse-wise view)
+		$('#location').on('change', function() {
+			var params = [];
+			var pi = $('#pi_no').val();
+			var loc = $(this).val();
+			if (pi) params.push('pi_no=' + encodeURIComponent(pi));
+			if (loc) params.push('location=' + encodeURIComponent(loc));
+			window.location.href = '<?= base_url() ?>stock' + (params.length ? '?' + params.join('&') : '');
 		});
 	});
 </script>

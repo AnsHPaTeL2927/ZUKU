@@ -1331,6 +1331,206 @@ public function loading_data($performa_invoice_id,$supplier_id,$export_time)
 		return $this->db->insert_id();
 	}
 
+	/**
+	 * Get all warehouses for Location filter (Stock page).
+	 * @return array of objects with id, name, warehouse_number
+	 */
+	public function get_warehouses_for_stock_filter()
+	{
+		if (!$this->db->table_exists('tbl_warehouse_master')) {
+			return array();
+		}
+		$this->db->select('id, name, warehouse_number');
+		$this->db->from('tbl_warehouse_master');
+		$this->db->order_by('name', 'ASC');
+		$query = $this->db->get();
+		return $query ? $query->result() : array();
+	}
+
+	/**
+	 * Get warehouses that have inventory (for dynamic columns).
+	 * Uses DISTINCT warehouse_id from tbl_warehouse_inventory to ensure we always match actual data.
+	 * LEFT JOINs to tbl_warehouse_master for names (handles deleted warehouses).
+	 * When no inventory exists, returns default Warehouse 01/02/03 for tbl_stock_calculation fallback.
+	 */
+	public function get_warehouses_with_stock()
+	{
+		if (!$this->db->table_exists('tbl_warehouse_inventory')) {
+			return $this->get_default_stock_warehouses();
+		}
+		$sql = "
+			SELECT DISTINCT inv.warehouse_id AS id,
+				COALESCE(NULLIF(TRIM(wm.name), ''), CONCAT('Warehouse ', inv.warehouse_id)) AS name,
+				COALESCE(wm.warehouse_number, inv.warehouse_id) AS warehouse_number
+			FROM tbl_warehouse_inventory inv
+			INNER JOIN tbl_performa_invoice pi ON pi.performa_invoice_id = inv.performa_invoice_id
+			LEFT JOIN tbl_warehouse_master wm ON wm.id = inv.warehouse_id
+			WHERE pi.status = 0
+			ORDER BY inv.warehouse_id ASC
+		";
+		$query = $this->db->query($sql);
+		$with_stock = $query ? $query->result() : array();
+		if (!empty($with_stock)) {
+			return $with_stock;
+		}
+		return $this->get_default_stock_warehouses();
+	}
+
+	/**
+	 * Default warehouse structure for stock display (Warehouse 01, 02, 03).
+	 */
+	private function get_default_stock_warehouses()
+	{
+		return array(
+			(object) array('id' => 1, 'name' => 'Warehouse 01', 'warehouse_number' => '1'),
+			(object) array('id' => 2, 'name' => 'Warehouse 02', 'warehouse_number' => '2'),
+			(object) array('id' => 3, 'name' => 'Warehouse 03', 'warehouse_number' => '3'),
+		);
+	}
+
+	/**
+	 * Get distinct PI numbers (invoice_no) that have entries in stock.
+	 * Uses tbl_warehouse_inventory first, falls back to tbl_stock_calculation.
+	 * Used to populate the PI NO. filter dropdown on Stock page.
+	 */
+	public function get_stock_pi_numbers()
+	{
+		$result = array();
+		if ($this->db->table_exists('tbl_warehouse_inventory')) {
+			$this->db->select('pi.invoice_no, inv.performa_invoice_id');
+			$this->db->from('tbl_warehouse_inventory inv');
+			$this->db->join('tbl_performa_invoice pi', 'pi.performa_invoice_id = inv.performa_invoice_id');
+			$this->db->where('pi.status', 0);
+			$this->db->group_by('inv.performa_invoice_id, pi.invoice_no');
+			$this->db->order_by('pi.invoice_no', 'ASC');
+			$query = $this->db->get();
+			$result = $query ? $query->result() : array();
+		}
+		if (empty($result) && $this->db->table_exists('tbl_stock_calculation')) {
+			$this->db->select('pi.invoice_no, sc.performa_invoice_id');
+			$this->db->from('tbl_stock_calculation sc');
+			$this->db->join('tbl_performa_invoice pi', 'pi.performa_invoice_id = sc.performa_invoice_id');
+			$this->db->where('pi.status', 0);
+			$this->db->group_by('sc.performa_invoice_id, pi.invoice_no');
+			$this->db->order_by('pi.invoice_no', 'ASC');
+			$query = $this->db->get();
+			$result = $query ? $query->result() : array();
+		}
+		return $result;
+	}
+
+	/**
+	 * Get stock list for Stock module: entries from Add to Inventory (tbl_warehouse_inventory).
+	 * Falls back to tbl_stock_calculation if warehouse inventory is empty.
+	 * Returns one row per (PI, design) with warehouse quantities and design/PI info.
+	 * @param string|null $invoice_no optional – filter by PI invoice number (e.g. PI-380/2025-26)
+	 * @param int|null $warehouse_id optional – filter to show only entries for this warehouse
+	 * @return array stock rows with dynamic wh_{id} columns per warehouse
+	 */
+	public function get_stock_list($invoice_no = null, $warehouse_id = null)
+	{
+		$result = array();
+		$warehouses = $this->get_warehouses_with_stock();
+
+		// Primary source: tbl_warehouse_inventory (from Add to Inventory)
+		if ($this->db->table_exists('tbl_warehouse_inventory')) {
+			$where_invoice = '';
+			if ($invoice_no !== null && $invoice_no !== '') {
+				$invoice_no_esc = $this->db->escape($invoice_no);
+				$where_invoice = " AND pi.invoice_no = " . $invoice_no_esc;
+			}
+			$where_warehouse = '';
+			if ($warehouse_id !== null && $warehouse_id !== '') {
+				$wh_id = (int) $warehouse_id;
+				$where_warehouse = " AND inv.warehouse_id = " . $wh_id;
+			}
+			$wh_columns = '';
+			foreach ($warehouses as $wh) {
+				$wid = (int) $wh->id;
+				$col = 'wh_' . $wid;
+				$wh_columns .= ", SUM(CASE WHEN inv.warehouse_id = " . $wid . " THEN inv.quantity ELSE 0 END) AS " . $col;
+			}
+			if ($wh_columns === '') {
+				$wh_columns = ", SUM(inv.quantity) AS wh_total";
+			}
+			$having = '';
+			if ($warehouse_id !== null && $warehouse_id !== '') {
+				$wh_id = (int) $warehouse_id;
+				$having = " HAVING SUM(CASE WHEN inv.warehouse_id = " . $wh_id . " THEN inv.quantity ELSE 0 END) > 0";
+			}
+			$sql = "
+				SELECT
+					inv.performa_invoice_id,
+					inv.design_id,
+					pi.invoice_no,
+					pi.performa_date,
+					pm.model_name AS design_name,
+					(
+						SELECT COALESCE(pr.size_type_mm, '')
+						FROM tbl_performa_packing pp2
+						INNER JOIN tbl_performa_trn pt ON pt.performa_trn_id = pp2.performa_trn_id AND pt.invoice_id = inv.performa_invoice_id
+						LEFT JOIN tbl_product pr ON pr.product_id = pt.product_id
+						WHERE pp2.design_id = inv.design_id
+						LIMIT 1
+					) AS size,
+					SUM(inv.quantity) AS total_quantity
+					" . $wh_columns . "
+				FROM tbl_warehouse_inventory inv
+				INNER JOIN tbl_performa_invoice pi ON pi.performa_invoice_id = inv.performa_invoice_id
+				INNER JOIN tbl_packing_model pm ON pm.packing_model_id = inv.design_id
+				WHERE pi.status = 0 " . $where_invoice . $where_warehouse . "
+				GROUP BY inv.performa_invoice_id, inv.design_id, pi.invoice_no, pi.performa_date, pm.model_name
+				" . $having . "
+				ORDER BY pi.performa_date DESC, pi.invoice_no ASC, pm.model_name ASC
+			";
+			$query = $this->db->query($sql);
+			$result = $query ? $query->result() : array();
+		}
+
+		// Fallback: tbl_stock_calculation when warehouse inventory is empty
+		if (empty($result) && $this->db->table_exists('tbl_stock_calculation')) {
+			$where_sc = 'pi.status = 0';
+			if ($invoice_no !== null && $invoice_no !== '') {
+				$where_sc .= " AND pi.invoice_no = " . $this->db->escape($invoice_no);
+			}
+			$sql_sc = "
+				SELECT
+					sc.performa_invoice_id,
+					sc.design_id,
+					MAX(sc.design_name) AS design_name,
+					MAX(sc.size) AS size,
+					MAX(sc.sku_code) AS sku_code,
+					SUM(sc.warehouse_01_sqm) AS wh_1,
+					SUM(sc.warehouse_02_sqm) AS wh_2,
+					SUM(sc.warehouse_03_sqm) AS wh_3,
+					SUM(sc.total_stock_sqm) AS total_quantity,
+					SUM(sc.total_sales_6m_sqm) AS total_sales_6m_sqm,
+					AVG(sc.avg_monthly_sales_sqm) AS avg_monthly_sales_sqm,
+					AVG(sc.avg_daily_sales_sqm) AS avg_daily_sales_sqm,
+					MAX(sc.lead_time_days) AS lead_time_days,
+					MAX(sc.safety_stock_days) AS safety_stock_days,
+					MAX(sc.reorder_point_sqm) AS reorder_point_sqm,
+					MAX(sc.days_of_stock_coverage) AS days_of_stock_coverage,
+					MAX(sc.etd) AS etd,
+					MAX(sc.eta) AS eta,
+					MAX(sc.days_until_delivery) AS days_until_delivery,
+					MAX(sc.days_out_of_stock_before_delivery) AS days_out_of_stock_before_delivery,
+					SUM(sc.lost_sales_sqm) AS lost_sales_sqm,
+					pi.invoice_no,
+					pi.performa_date
+				FROM tbl_stock_calculation sc
+				LEFT JOIN tbl_performa_invoice pi ON pi.performa_invoice_id = sc.performa_invoice_id
+				WHERE " . $where_sc . "
+				GROUP BY sc.performa_invoice_id, sc.design_id, pi.invoice_no, pi.performa_date
+				ORDER BY pi.performa_date DESC, pi.invoice_no ASC, design_name ASC
+			";
+			$q = $this->db->query($sql_sc);
+			$result = $q ? $q->result() : array();
+		}
+
+		return $result;
+	}
+
 	public function update_exportcointainer($con_entry,$performa_invoice_id,$data)
 
 	{
