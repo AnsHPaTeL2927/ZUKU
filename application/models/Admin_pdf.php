@@ -1448,15 +1448,15 @@ public function loading_data($performa_invoice_id,$supplier_id,$export_time)
 			foreach ($warehouses as $wh) {
 				$wid = (int) $wh->id;
 				$col = 'wh_' . $wid;
-				$wh_columns .= ", SUM(CASE WHEN inv.warehouse_id = " . $wid . " THEN inv.quantity ELSE 0 END) AS " . $col;
+				$wh_columns .= ", SUM(CASE WHEN inv.warehouse_id = " . $wid . " THEN inv.quantity * COALESCE(sqm_data.sqm_per_box, 0) ELSE 0 END) AS " . $col;
 			}
 			if ($wh_columns === '') {
-				$wh_columns = ", SUM(inv.quantity) AS wh_total";
+				$wh_columns = ", SUM(inv.quantity * COALESCE(sqm_data.sqm_per_box, 0)) AS wh_total";
 			}
 			$having = '';
 			if ($warehouse_id !== null && $warehouse_id !== '') {
 				$wh_id = (int) $warehouse_id;
-				$having = " HAVING SUM(CASE WHEN inv.warehouse_id = " . $wh_id . " THEN inv.quantity ELSE 0 END) > 0";
+				$having = " HAVING SUM(CASE WHEN inv.warehouse_id = " . $wh_id . " THEN inv.quantity * COALESCE(sqm_data.sqm_per_box, 0) ELSE 0 END) > 0";
 			}
 			$sql = "
 				SELECT
@@ -1473,11 +1473,28 @@ public function loading_data($performa_invoice_id,$supplier_id,$export_time)
 						WHERE pp2.design_id = inv.design_id
 						LIMIT 1
 					) AS size,
-					SUM(inv.quantity) AS total_quantity
+					SUM(inv.quantity * COALESCE(sqm_data.sqm_per_box, 0)) AS total_quantity,
+					MAX((SELECT lp.way_date FROM tbl_pi_loading_plan lp
+						INNER JOIN tbl_performa_packing pp ON pp.performa_packing_id = lp.performa_packing_id AND pp.design_id = inv.design_id
+						WHERE lp.performa_invoice_id = inv.performa_invoice_id
+							AND lp.way_date IS NOT NULL AND lp.way_date > '1970-01-01' AND lp.way_date != '0000-00-00'
+						ORDER BY lp.way_date DESC LIMIT 1)) AS etd,
+					MAX((SELECT lp.estimated_arrival_date FROM tbl_pi_loading_plan lp
+						INNER JOIN tbl_performa_packing pp ON pp.performa_packing_id = lp.performa_packing_id AND pp.design_id = inv.design_id
+						WHERE lp.performa_invoice_id = inv.performa_invoice_id
+							AND lp.estimated_arrival_date IS NOT NULL AND lp.estimated_arrival_date > '1970-01-01' AND lp.estimated_arrival_date != '0000-00-00'
+						ORDER BY lp.estimated_arrival_date DESC LIMIT 1)) AS eta
 					" . $wh_columns . "
 				FROM tbl_warehouse_inventory inv
 				INNER JOIN tbl_performa_invoice pi ON pi.performa_invoice_id = inv.performa_invoice_id
 				INNER JOIN tbl_packing_model pm ON pm.packing_model_id = inv.design_id
+				LEFT JOIN (
+					SELECT pt.invoice_id, pp.design_id, COALESCE(MAX(pt.sqm_per_box), 0) AS sqm_per_box
+					FROM tbl_performa_packing pp
+					INNER JOIN tbl_performa_trn pt ON pt.performa_trn_id = pp.performa_trn_id
+					WHERE pt.sqm_per_box IS NOT NULL AND pt.sqm_per_box > 0
+					GROUP BY pt.invoice_id, pp.design_id
+				) AS sqm_data ON sqm_data.invoice_id = pi.performa_invoice_id AND sqm_data.design_id = inv.design_id
 				WHERE pi.status = 0 " . $where_invoice . $where_warehouse . "
 				GROUP BY inv.performa_invoice_id, inv.design_id, pi.invoice_no, pi.performa_date, pm.model_name
 				" . $having . "
