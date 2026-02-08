@@ -222,15 +222,16 @@ $this->view('lib/header');
 												$avg_monthly = number_format($avg_monthly_val, 2, '.', '');
 												$avg_daily_val = $avg_monthly_val / 30;  /* AVG. DAILY = AVG. MONTHLY / 30 */
 												$avg_daily = number_format($avg_daily_val, 2, '.', '');
-												$lead_time = isset($row->lead_time_days) ? (int)$row->lead_time_days : 0;
-												$safety_stock = isset($row->safety_stock_days) ? (int)$row->safety_stock_days : 0;
+												$etd_raw = isset($row->etd) && !empty($row->etd) && !in_array($row->etd, array('0000-00-00', '1970-01-01')) ? $row->etd : null;
+												$eta_raw = isset($row->eta) && !empty($row->eta) && !in_array($row->eta, array('0000-00-00', '1970-01-01')) ? $row->eta : null;
+												$lead_time = ($etd_raw && $eta_raw) ? (int)round((strtotime($eta_raw) - strtotime($etd_raw)) / 86400) : (isset($row->lead_time_days) ? (int)$row->lead_time_days : 0);  /* LEAD TIME = ETA - ETD (days) */
+												$safety_stock = isset($row->safety_stock_days) ? (int)$row->safety_stock_days : 20;
 												$reorder_point_val = $avg_daily_val * ($lead_time + $safety_stock);  /* ROP = AVG. DAILY * (LEAD TIME + SAFETY STOCK) */
 												$reorder_point = number_format($reorder_point_val, 2, '.', '');
 												$days_coverage = ($avg_daily_val > 0) ? (int)($total_stock_val / $avg_daily_val) : 0;  /* DAYS OF COVERAGE = total stock / AVG. DAILY (or 0 if AVG. DAILY = 0) */
-												$etd = isset($row->etd) && !empty($row->etd) ? date('d/m/Y', strtotime($row->etd)) : '-';
-												$eta = isset($row->eta) && !empty($row->eta) ? date('d/m/Y', strtotime($row->eta)) : '-';
-												$eta_valid = isset($row->eta) && !empty($row->eta) && !in_array($row->eta, array('0000-00-00', '1970-01-01'));
-												$days_until_val = $eta_valid ? (int)round((strtotime($row->eta) - time()) / 86400) : null;  /* DAYS UNTIL DELIVERY = ETA - Today (days) */
+												$etd = $etd_raw ? date('d/m/Y', strtotime($etd_raw)) : '-';
+												$eta = $eta_raw ? date('d/m/Y', strtotime($eta_raw)) : '-';
+												$days_until_val = $eta_raw ? (int)round((strtotime($eta_raw) - time()) / 86400) : null;  /* DAYS UNTIL DELIVERY = ETA - Today (days) */
 												$days_until = ($days_until_val !== null) ? $days_until_val : '-';
 												$days_out_val = ($days_until_val !== null) ? max(0, $days_until_val - $days_coverage) : null;  /* DAYS OUT = Max(0, DAYS UNTIL - Days of stock Coverage) */
 												$days_out = ($days_out_val !== null) ? $days_out_val : '-';
@@ -249,11 +250,25 @@ $this->view('lib/header');
 												<td class="text-right"><?= $qty ?></td>
 												<?php endforeach; ?>
 												<td class="text-right"><?= $total_stock ?></td>
-												<td class="text-right"><?= $total_sales_6m ?></td>
+												<td class="text-right">
+													<input type="number" step="0.01" min="0" class="form-control input-sm text-right edit-sales-6m" style="width:90px;display:inline-block;padding:2px 6px;"
+														data-pi="<?= (int)(isset($row->performa_invoice_id) ? $row->performa_invoice_id : 0) ?>"
+														data-design="<?= (int)(isset($row->design_id) ? $row->design_id : 0) ?>"
+														data-original="<?= htmlspecialchars($total_sales_6m) ?>"
+														value="<?= htmlspecialchars($total_sales_6m) ?>"
+														title="Editable - change and click outside to save" />
+												</td>
 												<td class="text-right"><?= $avg_monthly ?></td>
 												<td class="text-right"><?= $avg_daily ?></td>
 												<td class="text-center"><?= $lead_time ?></td>
-												<td class="text-center"><?= $safety_stock ?></td>
+												<td class="text-center">
+													<input type="number" step="1" min="0" class="form-control input-sm text-center edit-safety-stock" style="width:70px;display:inline-block;padding:2px 6px;"
+														data-pi="<?= (int)(isset($row->performa_invoice_id) ? $row->performa_invoice_id : 0) ?>"
+														data-design="<?= (int)(isset($row->design_id) ? $row->design_id : 0) ?>"
+														data-original="<?= (int)$safety_stock ?>"
+														value="<?= (int)$safety_stock ?>"
+														title="Editable - change and click outside to save" />
+												</td>
 												<td class="text-right"><?= $reorder_point ?></td>
 												<td class="text-center"><?= $days_coverage ?></td>
 												<td><?= $etd ?></td>
@@ -264,11 +279,14 @@ $this->view('lib/header');
 												<td><a href="javascript:;" class="text-primary">-</a></td>
 												<td>
 													<a href="javascript:;" class="btn btn-default btn-sm btn-edit-stock" data-row="<?= htmlspecialchars(json_encode(array(
+														'performa_invoice_id' => isset($row->performa_invoice_id) ? (int)$row->performa_invoice_id : 0,
+														'design_id' => isset($row->design_id) ? (int)$row->design_id : 0,
 														'design_name' => $design,
 														'sku' => $sku,
 														'warehouses' => array_map(function($wh) use ($row) { $c = 'wh_' . (int)$wh->id; return array('id' => (int)$wh->id, 'name' => (isset($wh->name) && trim($wh->name) !== '' ? $wh->name : 'WareHouse #' . (isset($wh->warehouse_number) ? $wh->warehouse_number : $wh->id)), 'value' => isset($row->$c) ? (float)$row->$c : 0); }, $display_warehouses),
-														'total_stock' => $total_stock_val,
-														'reorder_point' => $reorder_point_val
+														'total_stock_sqm' => $total_stock_val,
+														'total_stock_boxes' => isset($row->total_boxes) ? (float)$row->total_boxes : 0,
+														'sqm_per_box' => isset($row->sqm_per_box) ? (float)$row->sqm_per_box : 0
 													)), ENT_QUOTES, 'UTF-8') ?>"><i class="fa fa-pencil"></i> Edit Stock</a>
 												</td>
 											</tr>
@@ -304,14 +322,39 @@ $this->view('lib/header');
 			</div>
 			<div class="modal-body">
 				<form id="editStockForm">
-					<div id="editStockWarehouseFields"></div>
 					<div class="form-group">
-						<label class="control-label">Total stock [m²]</label>
-						<input type="number" step="0.01" min="0" class="form-control" id="editStockTotalStock" placeholder="0" />
+						<label class="control-label">Current Warehouse (Stock in which warehouse)</label>
+						<input type="text" class="form-control" id="editStockCurrentWarehouse" readonly placeholder="-" />
+						<input type="hidden" id="editStockCurrentWarehouseId" value="" />
 					</div>
 					<div class="form-group">
-						<label class="control-label">Reorder Point ROP [m²]</label>
-						<input type="number" step="0.01" min="0" class="form-control" id="editStockReorderPoint" placeholder="0" />
+						<label class="control-label">Transfer Warehouse</label>
+						<select class="form-control" id="editStockTransferWarehouse">
+							<option value="">-- Select warehouse --</option>
+						</select>
+					</div>
+					<div class="form-group">
+						<label class="control-label">Total boxes</label>
+						<input type="text" class="form-control" id="editStockTotalBoxes" disabled readonly />
+					</div>
+					<div class="form-group">
+						<label class="control-label">Per box sqm</label>
+						<input type="text" class="form-control" id="editStockPerBoxSqm" disabled readonly />
+					</div>
+					<div class="form-group">
+						<label class="control-label">Transfer quantity type</label>
+						<select class="form-control" id="editStockQuantityType">
+							<option value="boxes">Boxes</option>
+							<option value="sqm">SQM [m²]</option>
+						</select>
+					</div>
+					<div class="form-group" id="editStockBoxesGroup">
+						<label class="control-label">Total stock [boxes]</label>
+						<input type="number" step="1" min="0" class="form-control" id="editStockTotalBoxesEditable" placeholder="0" />
+					</div>
+					<div class="form-group" id="editStockSqmGroup" style="display:none;">
+						<label class="control-label">Total stock [m²]</label>
+						<input type="number" step="0.01" min="0" class="form-control" id="editStockTotalSqm" placeholder="0" />
 					</div>
 				</form>
 			</div>
@@ -327,6 +370,14 @@ $this->view('lib/header');
 $this->view('lib/footer');
 ?>
 
+<script>
+	var STOCK_ALL_WAREHOUSES = <?= json_encode(array_map(function($wh) {
+		return array(
+			'id' => (int)(isset($wh->id) ? $wh->id : 0),
+			'name' => isset($wh->name) && trim($wh->name) !== '' ? $wh->name : ('WareHouse #' . (isset($wh->warehouse_number) ? $wh->warehouse_number : (isset($wh->id) ? $wh->id : '')))
+		);
+	}, (isset($warehouses) && is_array($warehouses) && !empty($warehouses)) ? $warehouses : (isset($stock_warehouses) && is_array($stock_warehouses) ? $stock_warehouses : array()))) ?>;
+</script>
 <script>
 	$(function() {
 		var $loader = $('#stock_table_loader');
@@ -373,30 +424,172 @@ $this->view('lib/footer');
 			window.location.href = '<?= base_url() ?>stock' + (params.length ? '?' + params.join('&') : '');
 		});
 
-		// Edit Stock modal
+		// Safety stock [days] - save on blur when changed
+		$(document).on('blur', '.edit-safety-stock', function() {
+			var $inp = $(this);
+			var pi = $inp.data('pi') || 0;
+			var design = $inp.data('design') || 0;
+			var val = parseInt($inp.val(), 10);
+			if (isNaN(val) || val < 0) val = 0;
+			var orig = parseInt($inp.data('original'), 10) || 0;
+			if (pi <= 0 || design <= 0) return;
+			if (val === orig) return;
+			$inp.prop('disabled', true);
+			$.post('<?= base_url() ?>stock/save_safety_stock', {
+				performa_invoice_id: pi,
+				design_id: design,
+				safety_stock_days: val
+			}).done(function(res) {
+				try {
+					var r = typeof res === 'string' ? JSON.parse(res) : res;
+					if (r.res == 1) {
+						window.location.reload();
+					} else {
+						alert(r.msg || 'Failed to save.');
+					}
+				} catch (e) {
+					alert('Save failed.');
+				}
+				$inp.prop('disabled', false);
+			}).fail(function() {
+				alert('Save failed.');
+				$inp.prop('disabled', false);
+			});
+		});
+
+		// Total sales last 6 months - save on blur when changed
+		$(document).on('blur', '.edit-sales-6m', function() {
+			var $inp = $(this);
+			var pi = $inp.data('pi') || 0;
+			var design = $inp.data('design') || 0;
+			var val = parseFloat($inp.val()) || 0;
+			var orig = parseFloat($inp.data('original')) || 0;
+			if (pi <= 0 || design <= 0) return;
+			if (Math.abs(val - orig) < 0.001) return;  // No change
+			$inp.prop('disabled', true);
+			$.post('<?= base_url() ?>stock/save_sales_6m', {
+				performa_invoice_id: pi,
+				design_id: design,
+				total_sales_6m_sqm: val
+			}).done(function(res) {
+				try {
+					var r = typeof res === 'string' ? JSON.parse(res) : res;
+					if (r.res == 1) {
+						window.location.reload();
+					} else {
+						alert(r.msg || 'Failed to save.');
+					}
+				} catch (e) {
+					alert('Save failed.');
+				}
+				$inp.prop('disabled', false);
+			}).fail(function() {
+				alert('Save failed.');
+				$inp.prop('disabled', false);
+			});
+		});
+
+		// Edit Stock modal - Transfer Warehouse: all warehouses except current
+		function buildTransferWarehouseOptions(excludeId) {
+			var opts = '<option value="">-- Select warehouse --</option>';
+			(STOCK_ALL_WAREHOUSES || []).forEach(function(wh) {
+				if (!wh.id) return;
+				if (excludeId !== '' && excludeId !== null && excludeId !== undefined && Number(wh.id) === Number(excludeId)) return;
+				opts += '<option value="' + wh.id + '">' + (wh.name || 'Warehouse ' + wh.id) + '</option>';
+			});
+			$('#editStockTransferWarehouse').html(opts);
+		}
 		$(document).on('click', '.btn-edit-stock', function() {
 			var dataStr = $(this).data('row');
 			if (!dataStr) return;
 			try {
 				var row = typeof dataStr === 'string' ? JSON.parse(dataStr) : dataStr;
 			} catch (e) { return; }
-			var html = '';
-			if (row.warehouses && row.warehouses.length) {
-				row.warehouses.forEach(function(wh) {
-					html += '<div class="form-group">' +
-						'<label class="control-label">' + (wh.name || 'Warehouse ' + wh.id) + ' [m²]</label>' +
-						'<input type="number" step="0.01" min="0" class="form-control edit-stock-wh" data-wh-id="' + wh.id + '" value="' + (wh.value || 0) + '" />' +
-						'</div>';
-				});
-			}
-			$('#editStockWarehouseFields').html(html || '<p class="text-muted">No warehouse columns for this row.</p>');
-			$('#editStockTotalStock').val(row.total_stock != null ? row.total_stock : '');
-			$('#editStockReorderPoint').val(row.reorder_point != null ? row.reorder_point : '');
+			var warehousesWithStock = (row.warehouses || []).filter(function(wh) { return (wh.value || 0) > 0; });
+			var whList = warehousesWithStock.length ? warehousesWithStock : (row.warehouses || []);
+			var currentWh = whList[0] || {};
+			var currentName = currentWh.name ? currentWh.name + (currentWh.value ? ' (' + currentWh.value + ' m²)' : '') : '-';
+			$('#editStockModal').data('performa-invoice-id', row.performa_invoice_id || 0);
+			$('#editStockModal').data('design-id', row.design_id || 0);
+			$('#editStockCurrentWarehouse').val(currentName);
+			$('#editStockCurrentWarehouseId').val(currentWh.id || '');
+			buildTransferWarehouseOptions(currentWh.id);
+			$('#editStockTotalBoxes').val(row.total_stock_boxes != null && row.total_stock_boxes !== '' ? row.total_stock_boxes : '-');
+			$('#editStockPerBoxSqm').val(row.sqm_per_box != null && row.sqm_per_box !== '' ? row.sqm_per_box : '-');
+			$('#editStockTotalBoxesEditable').val(row.total_stock_boxes != null ? row.total_stock_boxes : '');
+			$('#editStockTotalSqm').val(row.total_stock_sqm != null ? row.total_stock_sqm : '');
+			$('#editStockQuantityType').val('boxes');
+			$('#editStockBoxesGroup').show();
+			$('#editStockSqmGroup').hide();
 			$('#editStockModal').modal('show');
 		});
+		$('#editStockQuantityType').on('change', function() {
+			var type = $(this).val();
+			var sqmPerBox = parseFloat($('#editStockPerBoxSqm').val()) || 0;
+			if (type === 'boxes') {
+				var sqmVal = parseFloat($('#editStockTotalSqm').val()) || 0;
+				if (sqmPerBox > 0 && sqmVal > 0) {
+					$('#editStockTotalBoxesEditable').val(Math.round(sqmVal / sqmPerBox));
+				}
+				$('#editStockBoxesGroup').show();
+				$('#editStockSqmGroup').hide();
+			} else {
+				var boxesVal = parseFloat($('#editStockTotalBoxesEditable').val()) || 0;
+				if (sqmPerBox > 0 && boxesVal > 0) {
+					$('#editStockTotalSqm').val((boxesVal * sqmPerBox).toFixed(2));
+				}
+				$('#editStockBoxesGroup').hide();
+				$('#editStockSqmGroup').show();
+			}
+		});
 		$('#editStockSaveBtn').on('click', function() {
-			// UI only - Save logic can be implemented later
-			$('#editStockModal').modal('hide');
+			var performaInvoiceId = $('#editStockModal').data('performa-invoice-id') || 0;
+			var designId = $('#editStockModal').data('design-id') || 0;
+			var fromWarehouseId = $('#editStockCurrentWarehouseId').val() || '';
+			var toWarehouseId = $('#editStockTransferWarehouse').val() || '';
+			var quantityType = $('#editStockQuantityType').val() || 'boxes';
+			var quantityValue = quantityType === 'boxes' ? parseFloat($('#editStockTotalBoxesEditable').val()) || 0 : parseFloat($('#editStockTotalSqm').val()) || 0;
+			var sqmPerBox = parseFloat($('#editStockPerBoxSqm').val()) || 0;
+			if (!fromWarehouseId || !toWarehouseId) {
+				alert('Please select both current and transfer warehouse.');
+				return;
+			}
+			if (quantityValue <= 0) {
+				alert('Please enter transfer quantity.');
+				return;
+			}
+			if (quantityType === 'sqm' && sqmPerBox <= 0) {
+				alert('Cannot transfer in SQM: per box sqm is missing.');
+				return;
+			}
+			var $btn = $(this).prop('disabled', true);
+			$.post('<?= base_url() ?>stock/transfer_stock', {
+				performa_invoice_id: performaInvoiceId,
+				design_id: designId,
+				from_warehouse_id: fromWarehouseId,
+				to_warehouse_id: toWarehouseId,
+				quantity_type: quantityType,
+				quantity_value: quantityValue,
+				sqm_per_box: sqmPerBox
+			}).done(function(res) {
+				try {
+					var r = typeof res === 'string' ? JSON.parse(res) : res;
+					if (r.res == 1) {
+						$('#editStockModal').modal('hide');
+						alert(r.msg || 'Stock transferred successfully.');
+						window.location.reload();
+					} else {
+						alert(r.msg || 'Transfer failed.');
+						$btn.prop('disabled', false);
+					}
+				} catch (e) {
+					alert('An error occurred. Please try again.');
+					$btn.prop('disabled', false);
+				}
+			}).fail(function() {
+				alert('Request failed. Please try again.');
+				$btn.prop('disabled', false);
+			});
 		});
 	});
 </script>

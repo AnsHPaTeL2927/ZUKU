@@ -1318,6 +1318,92 @@ public function loading_data($performa_invoice_id,$supplier_id,$export_time)
 	}
 
 	/**
+	 * Transfer stock from one warehouse to another.
+	 * @param int $performa_invoice_id
+	 * @param int $design_id
+	 * @param int $from_warehouse_id
+	 * @param int $to_warehouse_id
+	 * @param float $transfer_quantity_boxes quantity in boxes to transfer
+	 * @return array ['success' => bool, 'msg' => string]
+	 */
+	public function transfer_warehouse_stock($performa_invoice_id, $design_id, $from_warehouse_id, $to_warehouse_id, $transfer_quantity_boxes)
+	{
+		if (!$this->db->table_exists('tbl_warehouse_inventory')) {
+			return array('success' => false, 'msg' => 'Warehouse inventory table not found.');
+		}
+		if ($from_warehouse_id <= 0 || $to_warehouse_id <= 0 || $from_warehouse_id == $to_warehouse_id) {
+			return array('success' => false, 'msg' => 'Invalid warehouse selection.');
+		}
+		if ($transfer_quantity_boxes <= 0) {
+			return array('success' => false, 'msg' => 'Transfer quantity must be greater than 0.');
+		}
+		$transfer_quantity_boxes = (float) $transfer_quantity_boxes;
+		$this->db->select_sum('quantity');
+		$this->db->from('tbl_warehouse_inventory inv');
+		$this->db->join('tbl_performa_invoice pi', 'pi.performa_invoice_id = inv.performa_invoice_id');
+		$this->db->where('inv.performa_invoice_id', (int) $performa_invoice_id);
+		$this->db->where('inv.design_id', (int) $design_id);
+		$this->db->where('inv.warehouse_id', (int) $from_warehouse_id);
+		$this->db->where('pi.status', 0);
+		$q = $this->db->get();
+		$row = $q ? $q->row() : null;
+		$available = $row && isset($row->quantity) ? (float) $row->quantity : 0;
+		if ($available < $transfer_quantity_boxes) {
+			return array('success' => false, 'msg' => 'Insufficient stock. Available: ' . $available . ' boxes.');
+		}
+		$this->db->trans_start();
+		$remaining = $transfer_quantity_boxes;
+		$this->db->select('inv.id, inv.quantity, inv.pi_loading_plan_id');
+		$this->db->from('tbl_warehouse_inventory inv');
+		$this->db->join('tbl_performa_invoice pi', 'pi.performa_invoice_id = inv.performa_invoice_id');
+		$this->db->where('inv.performa_invoice_id', (int) $performa_invoice_id);
+		$this->db->where('inv.design_id', (int) $design_id);
+		$this->db->where('inv.warehouse_id', (int) $from_warehouse_id);
+		$this->db->where('pi.status', 0);
+		$this->db->order_by('inv.id', 'ASC');
+		$rows = $this->db->get()->result();
+		$pi_loading_plan_id = !empty($rows[0]) && isset($rows[0]->pi_loading_plan_id) ? $rows[0]->pi_loading_plan_id : NULL;
+		foreach ($rows as $r) {
+			if ($remaining <= 0) break;
+			$deduct = min((float) $r->quantity, $remaining);
+			$this->db->set('quantity', 'quantity - ' . (float) $deduct, FALSE);
+			$this->db->set('updated_at', date('Y-m-d H:i:s'));
+			$this->db->where('id', (int) $r->id);
+			$this->db->update('tbl_warehouse_inventory');
+			$remaining -= $deduct;
+		}
+		$this->db->select('id, pi_loading_plan_id');
+		$this->db->from('tbl_warehouse_inventory inv');
+		$this->db->where('inv.performa_invoice_id', (int) $performa_invoice_id);
+		$this->db->where('inv.design_id', (int) $design_id);
+		$this->db->where('inv.warehouse_id', (int) $to_warehouse_id);
+		$existing = $this->db->get()->row();
+		if ($existing) {
+			$this->db->set('quantity', 'quantity + ' . (float) $transfer_quantity_boxes, FALSE);
+			$this->db->set('updated_at', date('Y-m-d H:i:s'));
+			$this->db->where('id', (int) $existing->id);
+			$this->db->update('tbl_warehouse_inventory');
+		} else {
+			$this->db->insert('tbl_warehouse_inventory', array(
+				'performa_invoice_id' => (int) $performa_invoice_id,
+				'pi_loading_plan_id' => $pi_loading_plan_id,
+				'design_id' => (int) $design_id,
+				'warehouse_id' => (int) $to_warehouse_id,
+				'quantity' => $transfer_quantity_boxes,
+				'notes' => 'Transferred from warehouse ' . (int) $from_warehouse_id,
+				'created_by' => isset($this->session->id) ? $this->session->id : NULL,
+				'created_at' => date('Y-m-d H:i:s'),
+				'updated_at' => date('Y-m-d H:i:s'),
+			));
+		}
+		$this->db->trans_complete();
+		if ($this->db->trans_status() === FALSE) {
+			return array('success' => false, 'msg' => 'Transfer failed. Please try again.');
+		}
+		return array('success' => true, 'msg' => 'Stock transferred successfully.');
+	}
+
+	/**
 	 * Record that a PI was added to stock (when "Add to Inventory" is triggered).
 	 * @param array $data keys: performa_invoice_id, added_at, added_by, notes (optional)
 	 * @return int|bool insert_id or false
@@ -1458,6 +1544,12 @@ public function loading_data($performa_invoice_id,$supplier_id,$export_time)
 				$wh_id = (int) $warehouse_id;
 				$having = " HAVING SUM(CASE WHEN inv.warehouse_id = " . $wh_id . " THEN inv.quantity * COALESCE(sqm_data.sqm_per_box, 0) ELSE 0 END) > 0";
 			}
+			$sales_calc_join = '';
+			$sales_calc_select = ', 0 AS total_sales_6m_sqm, 20 AS safety_stock_days';
+			if ($this->db->table_exists('tbl_stock_calculation')) {
+				$sales_calc_join = ' LEFT JOIN tbl_stock_calculation AS sales_calc ON sales_calc.performa_invoice_id = inv.performa_invoice_id AND sales_calc.design_id = inv.design_id';
+				$sales_calc_select = ', COALESCE(MAX(sales_calc.total_sales_6m_sqm), 0) AS total_sales_6m_sqm, COALESCE(MAX(sales_calc.safety_stock_days), 20) AS safety_stock_days';
+			}
 			$sql = "
 				SELECT
 					inv.performa_invoice_id,
@@ -1474,6 +1566,8 @@ public function loading_data($performa_invoice_id,$supplier_id,$export_time)
 						LIMIT 1
 					) AS size,
 					SUM(inv.quantity * COALESCE(sqm_data.sqm_per_box, 0)) AS total_quantity,
+					SUM(inv.quantity) AS total_boxes,
+					COALESCE(MAX(sqm_data.sqm_per_box), 0) AS sqm_per_box,
 					MAX((SELECT lp.way_date FROM tbl_pi_loading_plan lp
 						INNER JOIN tbl_performa_packing pp ON pp.performa_packing_id = lp.performa_packing_id AND pp.design_id = inv.design_id
 						WHERE lp.performa_invoice_id = inv.performa_invoice_id
@@ -1484,10 +1578,12 @@ public function loading_data($performa_invoice_id,$supplier_id,$export_time)
 						WHERE lp.performa_invoice_id = inv.performa_invoice_id
 							AND lp.estimated_arrival_date IS NOT NULL AND lp.estimated_arrival_date > '1970-01-01' AND lp.estimated_arrival_date != '0000-00-00'
 						ORDER BY lp.estimated_arrival_date DESC LIMIT 1)) AS eta
+					" . $sales_calc_select . "
 					" . $wh_columns . "
 				FROM tbl_warehouse_inventory inv
 				INNER JOIN tbl_performa_invoice pi ON pi.performa_invoice_id = inv.performa_invoice_id
 				INNER JOIN tbl_packing_model pm ON pm.packing_model_id = inv.design_id
+				" . $sales_calc_join . "
 				LEFT JOIN (
 					SELECT pt.invoice_id, pp.design_id, COALESCE(MAX(pt.sqm_per_box), 0) AS sqm_per_box
 					FROM tbl_performa_packing pp
@@ -1525,7 +1621,7 @@ public function loading_data($performa_invoice_id,$supplier_id,$export_time)
 					AVG(sc.avg_monthly_sales_sqm) AS avg_monthly_sales_sqm,
 					AVG(sc.avg_daily_sales_sqm) AS avg_daily_sales_sqm,
 					MAX(sc.lead_time_days) AS lead_time_days,
-					MAX(sc.safety_stock_days) AS safety_stock_days,
+					COALESCE(MAX(sc.safety_stock_days), 20) AS safety_stock_days,
 					MAX(sc.reorder_point_sqm) AS reorder_point_sqm,
 					MAX(sc.days_of_stock_coverage) AS days_of_stock_coverage,
 					MAX(sc.etd) AS etd,
@@ -1545,7 +1641,117 @@ public function loading_data($performa_invoice_id,$supplier_id,$export_time)
 			$result = $q ? $q->result() : array();
 		}
 
+		// Apply total_sales_6m_sqm from tbl_stock_calculation (most recent per pi/design) for fallback path
+		if (!empty($result) && $this->db->table_exists('tbl_stock_calculation')) {
+			$pairs = array();
+			$seen = array();
+			foreach ($result as $r) {
+				if (!empty($r->performa_invoice_id) && !empty($r->design_id)) {
+					$key = (int) $r->performa_invoice_id . '_' . (int) $r->design_id;
+					if (!isset($seen[$key])) {
+						$seen[$key] = true;
+						$pairs[] = '(' . (int) $r->performa_invoice_id . ',' . (int) $r->design_id . ')';
+					}
+				}
+			}
+			if (!empty($pairs)) {
+				$qo = $this->db->query('SELECT sc.performa_invoice_id, sc.design_id, sc.total_sales_6m_sqm, sc.safety_stock_days, sc.updated_at FROM tbl_stock_calculation sc WHERE (sc.performa_invoice_id, sc.design_id) IN (' . implode(',', $pairs) . ') ORDER BY sc.updated_at DESC');
+				$rows = $qo ? $qo->result() : array();
+				$map_sales = array();
+				$map_safety = array();
+				foreach ($rows as $o) {
+					$key = (int) $o->performa_invoice_id . '_' . (int) $o->design_id;
+					if (!isset($map_sales[$key])) {
+						$map_sales[$key] = (float) $o->total_sales_6m_sqm;
+						$map_safety[$key] = isset($o->safety_stock_days) ? (int) $o->safety_stock_days : 20;
+					}
+				}
+				foreach ($result as $r) {
+					$key = (int) $r->performa_invoice_id . '_' . (int) $r->design_id;
+					if (isset($map_sales[$key])) {
+						$r->total_sales_6m_sqm = $map_sales[$key];
+						$r->safety_stock_days = $map_safety[$key];
+					}
+				}
+			}
+		}
+
 		return $result;
+	}
+
+	/**
+	 * Save user override for total sales last 6 months.
+	 * @param int $performa_invoice_id
+	 * @param int $design_id
+	 * @param float $total_sales_6m_sqm
+	 * @return bool
+	 */
+	public function save_stock_sales_override($performa_invoice_id, $design_id, $total_sales_6m_sqm)
+	{
+		if (!$this->db->table_exists('tbl_stock_calculation')) {
+			return false;
+		}
+		$performa_invoice_id = (int) $performa_invoice_id;
+		$design_id = (int) $design_id;
+		$total_sales_6m_sqm = (float) $total_sales_6m_sqm;
+		$existing = $this->db->select('id')->from('tbl_stock_calculation')
+			->where('performa_invoice_id', $performa_invoice_id)->where('design_id', $design_id)
+			->get()->row();
+		$now = date('Y-m-d H:i:s');
+		if ($existing) {
+			return $this->db->where('id', (int) $existing->id)->update('tbl_stock_calculation', array(
+				'total_sales_6m_sqm' => $total_sales_6m_sqm,
+				'updated_at' => $now,
+			));
+		}
+		$design = $this->db->select('model_name')->from('tbl_packing_model')->where('packing_model_id', $design_id)->get()->row();
+		return $this->db->insert('tbl_stock_calculation', array(
+			'performa_invoice_id' => $performa_invoice_id,
+			'design_id' => $design_id,
+			'design_name' => $design ? $design->model_name : null,
+			'total_sales_6m_sqm' => $total_sales_6m_sqm,
+			'created_at' => $now,
+			'updated_at' => $now,
+		));
+	}
+
+	/**
+	 * Save user override for safety stock [days].
+	 * @param int $performa_invoice_id
+	 * @param int $design_id
+	 * @param int $safety_stock_days
+	 * @return bool
+	 */
+	public function save_stock_safety_stock_days($performa_invoice_id, $design_id, $safety_stock_days)
+	{
+		if (!$this->db->table_exists('tbl_stock_calculation')) {
+			return false;
+		}
+		$performa_invoice_id = (int) $performa_invoice_id;
+		$design_id = (int) $design_id;
+		$safety_stock_days = (int) $safety_stock_days;
+		if ($safety_stock_days < 0) {
+			$safety_stock_days = 0;
+		}
+		$existing = $this->db->select('id')->from('tbl_stock_calculation')
+			->where('performa_invoice_id', $performa_invoice_id)->where('design_id', $design_id)
+			->get()->row();
+		$now = date('Y-m-d H:i:s');
+		if ($existing) {
+			return $this->db->where('id', (int) $existing->id)->update('tbl_stock_calculation', array(
+				'safety_stock_days' => $safety_stock_days,
+				'updated_at' => $now,
+			));
+		}
+		$design = $this->db->select('model_name')->from('tbl_packing_model')->where('packing_model_id', $design_id)->get()->row();
+		return $this->db->insert('tbl_stock_calculation', array(
+			'performa_invoice_id' => $performa_invoice_id,
+			'design_id' => $design_id,
+			'design_name' => $design ? $design->model_name : null,
+			'safety_stock_days' => $safety_stock_days,
+			'created_at' => $now,
+			'updated_at' => $now,
+		));
 	}
 
 	public function update_exportcointainer($con_entry,$performa_invoice_id,$data)
