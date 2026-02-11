@@ -845,7 +845,6 @@ class Create_pi_loading extends CI_controller
 					}
 				}
 			}
-			}
 		}
 			
 		echo json_encode($row);
