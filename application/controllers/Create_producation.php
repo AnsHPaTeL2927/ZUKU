@@ -497,7 +497,8 @@ class Create_producation extends CI_controller
 	
 	public function click_for_qc()
 	{
-		$production_mst_id	 = str_ireplace("-","','",$this->input->post('qcproduction_mst_id'));
+		$production_mst_id_post = $this->input->post('qcproduction_mst_id');
+		$production_mst_id	 = str_ireplace("-","','",$production_mst_id_post);
 		 
 		$status = $this->input->post('status');
 		
@@ -506,6 +507,20 @@ class Create_producation extends CI_controller
 					
 		if($deleterecord)
 		{
+			// Send email notification when QC is done (status == 1)
+			if($status == 1)
+			{
+				// Get production IDs as array for email notification
+				$production_ids = explode("-", $production_mst_id_post);
+				foreach($production_ids as $prod_id)
+				{
+					$prod_id = trim($prod_id);
+					if(!empty($prod_id) && is_numeric($prod_id))
+					{
+						$this->email_service->send_qc_done_email($prod_id);
+					}
+				}
+			}
 			$row['res'] = '1';
 		}
 		else{

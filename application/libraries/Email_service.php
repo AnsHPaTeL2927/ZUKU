@@ -236,4 +236,58 @@ class Email_service
             return false;
         }
     }
+
+    /**
+     * Send QC done email notification (call when admin marks QC as done).
+     * @param int $production_mst_id Production Master ID
+     * @return bool
+     */
+    public function send_qc_done_email($production_mst_id)
+    {
+        try {
+            $this->CI->load->model('Admin_pdf');
+            $production_data = $this->CI->Admin_pdf->producation_mst_data($production_mst_id);
+            if (!$production_data) {
+                log_message('warning', 'Email_service send_qc_done_email: production data not found for ID ' . $production_mst_id);
+                return false;
+            }
+
+            // Get customer email from production data (already joined with customer_detail)
+            $client_email = (!empty($production_data->c_email)) ? $production_data->c_email : '';
+            if (empty($client_email) && $this->CI->config->item('email_test_override') && $this->CI->config->item('email_test_address')) {
+                $client_email = $this->CI->config->item('email_test_address');
+            }
+            if (empty($client_email)) {
+                log_message('warning', 'Email_service send_qc_done_email: no recipient for Production ID ' . $production_mst_id);
+                return false;
+            }
+
+            $production_no = !empty($production_data->producation_no) ? $production_data->producation_no : 'PROD-' . $production_mst_id;
+            $invoice_no = !empty($production_data->invoice_no) ? $production_data->invoice_no : '';
+            $subject = 'QC Completed - ' . $production_no;
+            
+            $customer_name = (!empty($production_data->c_name)) ? $production_data->c_name : 
+                            (!empty($production_data->c_companyname) ? $production_data->c_companyname : 'Client');
+            
+            $body = 'Dear ' . $customer_name . ',<br><br>';
+            $body .= 'This is to inform you that Quality Control (QC) has been completed for your production order.<br><br>';
+            $body .= '<strong>Production Details:</strong><br>';
+            $body .= 'Production Number: ' . $production_no . '<br>';
+            if (!empty($invoice_no)) {
+                $body .= 'Proforma Invoice Number: ' . $invoice_no . '<br>';
+            }
+            if (!empty($production_data->producation_date)) {
+                $body .= 'Production Date: ' . date('d-m-Y', strtotime($production_data->producation_date)) . '<br>';
+            }
+            $body .= '<br>Thank you.<br><br>Best regards,<br>ZUKU App';
+
+            $this->CI->load->library('Pdf_service');
+            // Send email without PDF attachment (null for attachment_path)
+            $sent = $this->CI->pdf_service->sendEmail($client_email, $subject, $body, null);
+            return $sent;
+        } catch (Throwable $e) {
+            log_message('error', 'Email_service send_qc_done_email: ' . $e->getMessage());
+            return false;
+        }
+    }
 }
