@@ -9,6 +9,7 @@ class Assign_producation extends CI_controller
 		 
 		$this->load->model('Admin_Producation','producation');
 		$this->load->model('menu_model','menu');
+		$this->load->library('Email_service');
 		if (!isset($_SESSION['id'])) {
 			redirect(base_url());
 		}
@@ -856,6 +857,10 @@ class Assign_producation extends CI_controller
 						'notes'              => NULL
 					));
 				}
+				
+				// Send email notification to admin when client adds to inventory
+				$this->email_service->send_inventory_added_email($performa_invoice_id);
+				
 				$row['res'] = 1;
 				$row['msg'] = "Inventory saved successfully. " . $success_count . " record(s) added.";
 				if($error_count > 0)

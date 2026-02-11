@@ -183,4 +183,57 @@ class Email_service
             return false;
         }
     }
+
+    /**
+     * Send inventory added email notification to admin (call when client adds to inventory/stock).
+     * @param int $performa_invoice_id Proforma Invoice ID
+     * @return bool
+     */
+    public function send_inventory_added_email($performa_invoice_id)
+    {
+        try {
+            // Get admin email from company detail
+            $this->CI->load->model('admin_company_detail');
+            $company_detail = $this->CI->admin_company_detail->s_select();
+            $admin_email = (!empty($company_detail) && !empty($company_detail[0]->s_email)) ? $company_detail[0]->s_email : '';
+            
+            if (empty($admin_email) && $this->CI->config->item('email_test_override') && $this->CI->config->item('email_test_address')) {
+                $admin_email = $this->CI->config->item('email_test_address');
+            }
+            
+            if (empty($admin_email)) {
+                log_message('warning', 'Email_service send_inventory_added_email: no admin email found for PI ID ' . $performa_invoice_id);
+                return false;
+            }
+
+            // Get PI data
+            $this->CI->load->model('Admin_pdf');
+            $pi_data = $this->CI->Admin_pdf->select_invoice_data($performa_invoice_id);
+            if (!$pi_data) {
+                log_message('warning', 'Email_service send_inventory_added_email: PI data not found for ID ' . $performa_invoice_id);
+                return false;
+            }
+
+            $invoice_no = !empty($pi_data->invoice_no) ? $pi_data->invoice_no : 'PI-' . $performa_invoice_id;
+            $subject = 'Inventory Added - ' . $invoice_no;
+            
+            $body = 'Dear Admin,<br><br>';
+            $body .= 'CON.REACHED<br><br>';
+            $body .= 'A client has added items to inventory/stock.<br><br>';
+            $body .= '<strong>Invoice Details:</strong><br>';
+            $body .= 'Invoice Number: ' . $invoice_no . '<br>';
+            if (!empty($pi_data->performa_date)) {
+                $body .= 'Invoice Date: ' . date('d-m-Y', strtotime($pi_data->performa_date)) . '<br>';
+            }
+            $body .= '<br>Thank you.<br><br>Best regards,<br>ZUKU App';
+
+            $this->CI->load->library('Pdf_service');
+            // Send email without PDF attachment (null for attachment_path)
+            $sent = $this->CI->pdf_service->sendEmail($admin_email, $subject, $body, null);
+            return $sent;
+        } catch (Throwable $e) {
+            log_message('error', 'Email_service send_inventory_added_email: ' . $e->getMessage());
+            return false;
+        }
+    }
 }
