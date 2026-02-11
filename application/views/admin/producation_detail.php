@@ -277,6 +277,18 @@ $this->view('lib/addcurrency');
 </div>
 
 <script>
+// Fallback if block_page/unblock_page not defined by footer
+if (typeof block_page !== 'function') {
+	function block_page() { try { if (typeof $ !== 'undefined' && $.blockUI) $.blockUI(); } catch (e) {} }
+}
+if (typeof unblock_page !== 'function') {
+	function unblock_page(type, msg) {
+		try {
+			if (typeof $ !== 'undefined' && $.unblockUI) $.unblockUI();
+			if (msg && type && typeof toastr !== 'undefined') toastr[type](msg);
+		} catch (e) {}
+	}
+}
 
 $(document).on("shown.bs.modal", "#productionModal", function() {
     $(".pallets").each(function() {
