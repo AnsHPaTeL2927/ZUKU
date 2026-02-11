@@ -790,7 +790,7 @@ $this->view('lib/addconsigner');
 
  
 <script>
-image.png// Ensure block_page/unblock_page exist (fallback if footer not loaded or script order issue)
+// Ensure block_page/unblock_page exist (fallback if footer not loaded or script order issue)
 if (typeof block_page !== 'function') {
 	window.block_page = function() {
 		if (typeof $.blockUI === 'function') {
@@ -1002,18 +1002,53 @@ $("#invoice_form").submit(function(event) {
 				   $("#invoice_form").trigger('reset');
 				    unblock_page("success","Sucessfully Inserted.");
 					<?php 
-					
-					if($direct_invoice == 1)
+					// Check if this is multiple copy mode
+					if(isset($mutiple_status) && $mutiple_status == 2)
 					{
+						// Get the performa_invoice_id array
+						$performa_array = explode("-", $performa_invoice_id);
+						// Remove the last processed invoice (current one)
+						array_pop($performa_array);
+						// If there are more invoices, navigate to next one
+						if(count($performa_array) > 0)
+						{
+							$remaining_ids = implode("-", $performa_array);
+					?>
+						setTimeout(function(){ window.location=root+'exportinvoice/mutiplecopy/<?=$remaining_ids?>/<?=$supplier_id?>/<?=$container_status?>'; },1500);
+					<?php 
+						}
+						else
+						{
+							// All invoices processed, go to product page
+							if($direct_invoice == 1)
+							{
 					?>
 						setTimeout(function(){ window.location=root+'exportinvoiceproduct/direct/'+obj.invoiceid; },1500);
 					<?php 
-					}
-					else
-					{
+							}
+							else
+							{
 					?>
 						setTimeout(function(){ window.location=root+'exportinvoiceproduct/index/'+obj.invoiceid; },1500);
 					<?php 
+							}
+						}
+					}
+					else
+					{
+						// Normal flow (not multiple copy)
+						if($direct_invoice == 1)
+						{
+					?>
+						setTimeout(function(){ window.location=root+'exportinvoiceproduct/direct/'+obj.invoiceid; },1500);
+					<?php 
+						}
+						else
+						{
+					?>
+						setTimeout(function(){ window.location=root+'exportinvoiceproduct/index/'+obj.invoiceid; },1500);
+					<?php 
+						}
 					}
 					?>
 				}
@@ -1022,17 +1057,53 @@ $("#invoice_form").submit(function(event) {
 				   $("#invoice_form").trigger('reset');
 				    unblock_page("success","Sucessfully Updated.");
 				<?php 
-					if($direct_invoice == 1)
+					// Check if this is multiple copy mode
+					if(isset($mutiple_status) && $mutiple_status == 2)
 					{
+						// Get the performa_invoice_id array
+						$performa_array = explode("-", $performa_invoice_id);
+						// Remove the last processed invoice (current one)
+						array_pop($performa_array);
+						// If there are more invoices, navigate to next one
+						if(count($performa_array) > 0)
+						{
+							$remaining_ids = implode("-", $performa_array);
+					?>
+						setTimeout(function(){ window.location=root+'exportinvoice/mutiplecopy/<?=$remaining_ids?>/<?=$supplier_id?>/<?=$container_status?>'; },1500);
+					<?php 
+						}
+						else
+						{
+							// All invoices processed, go to product page
+							if($direct_invoice == 1)
+							{
 					?>
 						setTimeout(function(){ window.location=root+'exportinvoiceproduct/direct/'+obj.invoiceid; },1500);
 					<?php 
-					}
-					else
-					{
+							}
+							else
+							{
 					?>
 						setTimeout(function(){ window.location=root+'exportinvoiceproduct/index/'+obj.invoiceid; },1500);
 					<?php 
+							}
+						}
+					}
+					else
+					{
+						// Normal flow (not multiple copy)
+						if($direct_invoice == 1)
+						{
+					?>
+						setTimeout(function(){ window.location=root+'exportinvoiceproduct/direct/'+obj.invoiceid; },1500);
+					<?php 
+						}
+						else
+						{
+					?>
+						setTimeout(function(){ window.location=root+'exportinvoiceproduct/index/'+obj.invoiceid; },1500);
+					<?php 
+						}
 					}
 					?>
 				}
