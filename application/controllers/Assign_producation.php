@@ -8,7 +8,7 @@ class Assign_producation extends CI_controller
 		parent::__construct();
 		 
 		$this->load->model('Admin_Producation','producation');
-		$this->load->model('menu_model','menu');	
+		$this->load->model('menu_model','menu');
 		if (!isset($_SESSION['id'])) {
 			redirect(base_url());
 		}
@@ -862,6 +862,7 @@ class Assign_producation extends CI_controller
 				{
 					$row['msg'] .= " " . $error_count . " record(s) failed.";
 				}
+				
 			}
 			else
 			{

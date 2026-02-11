@@ -38,10 +38,25 @@ class Performa_invoice_pdf extends CI_controller
 					'mode' 			 		=> "0" 
 					 
 				);
+
+			
 			$this->load->view('admin/performa_invoice_pdf',$v);
 		}
 		else
 		{
+			redirect(base_url().'');
+		}
+	}
+
+	/**
+	 * Download PI PDF (uses Email_service: template + download).
+	 */
+	function download_pdf($id)
+	{
+		if (!empty($this->session->id) && $this->session->title == TITLE) {
+			$this->load->library('Email_service');
+			$this->email_service->download_pi_pdf($id);
+		} else {
 			redirect(base_url().'');
 		}
 	}

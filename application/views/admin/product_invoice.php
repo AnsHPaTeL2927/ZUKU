@@ -269,24 +269,26 @@ $this->view('lib/header');
 													{
 														$product_plts = $product_data[$i]->boxes_per_pallet;
 														$plts_per_container = $product_data[$i]->total_pallent_container;
-														$one_container		= $packing_row->no_of_boxes * 100 / $product_data[$i]->box_per_container; 
-														
+														$div = isset($product_data[$i]->box_per_container) ? (float)$product_data[$i]->box_per_container : 0;
+														$one_container = ($div != 0) ? ($packing_row->no_of_boxes * 100 / $div) : 0;
 													}
 													else if($packing_row->no_of_big_pallet > 0 || $packing_row->no_of_small_pallet)
 													{
 														$product_plts  =  $product_data[$i]->box_per_big_pallet.'<br>'.$product_data[$i]->box_per_small_pallet;
 														$plts_per_container = $product_data[$i]->no_big_plt_container_new.'<br>'.$product_data[$i]->no_small_plt_container_new;
-														$one_container = $packing_row->no_of_boxes * 100 / $product_data[$i]->multi_box_per_container; 
-														
+														$div = isset($product_data[$i]->multi_box_per_container) ? (float)$product_data[$i]->multi_box_per_container : 0;
+														$one_container = ($div != 0) ? ($packing_row->no_of_boxes * 100 / $div) : 0;
 													}
 													else
 													{
 														$product_plts = '-';
 														$plts_per_container = '-';
-														$one_container = $packing_row->no_of_boxes * 100 / $product_data[$i]->total_boxes; 
+														$div = isset($product_data[$i]->total_boxes) ? (float)$product_data[$i]->total_boxes : 0;
+														$one_container = ($div != 0) ? ($packing_row->no_of_boxes * 100 / $div) : 0;
 													}
 													
-													 $one_container = ($one_container == INF)?" - ":number_format($one_container/100,2);
+													$one_container_num = ($one_container == INF || $one_container === 0) ? 0 : ($one_container / 100);
+													$one_container = ($one_container == INF || $one_container === 0) ? " - " : number_format($one_container_num, 2);
 													 
 													?>
 												 	<td>
@@ -297,7 +299,7 @@ $this->view('lib/header');
 													</td>
 													<td>
 														<?php
-														$total_container += ($product_data[$i]->product_id == 0)?0:$one_container;
+														$total_container += ($product_data[$i]->product_id == 0) ? 0 : $one_container_num;
 														 
 														if($packing_row->no_of_pallet>0)
 														{

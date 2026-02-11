@@ -110,7 +110,7 @@ if($mode=="Add")
 	$final_destination 			= $invoicedata->final_destination;
 	$district_of_origin         = $exporter_detail->district_of_origin;
 	$state_of_origin			= $exporter_detail->state_of_origin;
-	$supplier_other_company			= $supplier_detail->supplier_other_company;
+	$supplier_other_company			= (!empty($supplier_detail) && is_object($supplier_detail)) ? $supplier_detail->supplier_other_company : ((isset($supplier_detail) && is_array($supplier_detail) && isset($supplier_detail[0])) ? $supplier_detail[0]->supplier_other_company : '');
 	$export_payment_terms 		= strip_tags($invoicedata->payment_terms);
 	$export_terms_of_delivery 	= !empty($invoicedata)?$invoicedata->terms_of_delivery:'Mundra (India)';
 	$consiger_id 				= $invoicedata->consigne_id;
@@ -621,15 +621,16 @@ else
 														<option value="">Please Select Other Company</option>
 														<!--	<option value="0" style="color:blue">Add New Consigner</option>-->
 														<?php 
-														for($i=0; $i<count($supplier_detail);$i++)
+														$supplier_detail_list = (isset($supplier_detail) && is_array($supplier_detail)) ? $supplier_detail : array();
+														for($i=0; $i<count($supplier_detail_list);$i++)
 														{
 															$selected='';
-															if($supplier_other_company==$supplier_detail[$i]->supplier_id)
+															if($supplier_other_company==$supplier_detail_list[$i]->supplier_id)
 															{
 																$selected = 'selected="selected"';
 															}
 														?>
-															<option <?=$selected?> value="<?=$supplier_detail[$i]->supplier_other_company?>"><?=$supplier_detail[$i]->supplier_other_company?></option>
+															<option <?=$selected?> value="<?=$supplier_detail_list[$i]->supplier_other_company?>"><?=$supplier_detail_list[$i]->supplier_other_company?></option>
 														<?php
 														}
 														?>
@@ -789,6 +790,20 @@ $this->view('lib/addconsigner');
 
  
 <script>
+image.png// Ensure block_page/unblock_page exist (fallback if footer not loaded or script order issue)
+if (typeof block_page !== 'function') {
+	window.block_page = function() {
+		if (typeof $.blockUI === 'function') {
+			$.blockUI({ css: { border: 'none', padding: '0px', width: '17%', left: '43%', backgroundColor: '#000', '-webkit-border-radius': '10px', '-moz-border-radius': '10px', opacity: .5, color: '#fff', zIndex: '10000' }, message: '<h3> Please wait...</h3>' });
+		}
+	};
+}
+if (typeof unblock_page !== 'function') {
+	window.unblock_page = function(type, msg) {
+		if (type !== '' && msg !== '' && typeof toastr !== 'undefined') { toastr[type](msg); }
+		if (typeof $.unblockUI === 'function') { setTimeout($.unblockUI, 500); }
+	};
+}
 $(document).ready(function() {
 	 
     $( "#payment_terms" ).autocomplete({

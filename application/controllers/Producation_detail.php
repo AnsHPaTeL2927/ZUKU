@@ -10,7 +10,7 @@ class Producation_detail extends CI_controller
 		$this->load->library(array('form_validation','session','encrypt'));
 		$this->load->model('Admin_Producation','producation');
 		$this->load->model('Admin_pdf','pinv');
-		$this->load->model('menu_model','menu');	
+		$this->load->model('menu_model','menu');
 		if (!isset($_SESSION['id'])) {
 			redirect(base_url());
 		}

@@ -350,19 +350,23 @@ class Admin_pdf extends CI_model
 
 				 $category->packing = $this->get_packing($category->performa_trn_id);
 
-				 $stock 			= $this->get_all_size_producation($category->product_id);
+				 $stock = $this->get_all_size_producation($category->product_id);
 
-				 $total_boxes 		= $stock[0]->performa_boxes;
+				 if (!empty($stock) && isset($stock[0])) {
 
-				 $total_boxes 		= $stock[0]->performa_boxes;
+					 $total_boxes     = $stock[0]->performa_boxes;
 
-				 $producation_box 	= ($stock[0]->producation_boxes + $stock[0]->po_boxes);
+					 $producation_box = (isset($stock[0]->producation_boxes) ? $stock[0]->producation_boxes : 0) + (isset($stock[0]->po_boxes) ? $stock[0]->po_boxes : 0);
 
-				 $assign_box 		= $stock[0]->assign_boxes;
+					 $assign_box      = isset($stock[0]->assign_boxes) ? $stock[0]->assign_boxes : 0;
 
-				  
+					 $category->remaining = ($producation_box - $assign_box);
 
-				 $category->remaining   = ($producation_box - $assign_box);
+				 } else {
+
+					 $category->remaining = 0;
+
+				 }
 
 			 $i++;
 

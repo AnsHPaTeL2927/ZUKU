@@ -57,8 +57,13 @@
  }
  $locale='en-US'; //browser or user locale
 $currency			= $invoicedata->currency_code; 
-$fmt 				= new NumberFormatter( $locale."@currency=$currency", NumberFormatter::CURRENCY );
-$currency_symbol 	= $fmt->getSymbol(NumberFormatter::CURRENCY_SYMBOL);
+if (class_exists('NumberFormatter')) {
+	$fmt 				= new NumberFormatter( $locale."@currency=$currency", NumberFormatter::CURRENCY );
+	$currency_symbol 	= $fmt->getSymbol(NumberFormatter::CURRENCY_SYMBOL);
+} else {
+	$currency_symbols = array('USD'=>'$','EUR'=>'€','GBP'=>'£','INR'=>'₹','JPY'=>'¥','AUD'=>'A$','CAD'=>'C$','CHF'=>'CHF','CNY'=>'¥','SGD'=>'S$');
+	$currency_symbol 	= isset($currency_symbols[$currency]) ? $currency_symbols[$currency] : (empty($currency) ? '$' : $currency . ' ');
+}
  
  $export_under = strip_tags($company_detail[0]->export_under_detail1);
  if(!empty($invoicedata->export_under))
@@ -792,7 +797,7 @@ $this->view('lib/header');
 															<th></th> 
 															  <?php  $Total_ammount -= $invoicedata->discount; ?> 
 														</tr>
-														<?php  $pi_diffrence = ($invoicedata->pigrandtotal - $invoicedata->piagentgrandtotal)?> 
+														<?php  $pi_agent = isset($invoicedata->piagentgrandtotal) ? $invoicedata->piagentgrandtotal : 0; $pi_diffrence = ($invoicedata->pigrandtotal - $pi_agent); ?> 
 														<tr>
 														<td colspan="8"></td>
 															<th colspan="2">Diffrence</th>
@@ -802,7 +807,7 @@ $this->view('lib/header');
 															</th>
 															 
 															<th></th> 
-															 <?php  $Total_ammount -= ($invoicedata->pigrandtotal - $invoicedata->piagentgrandtotal) ?> 
+															 <?php  $Total_ammount -= ($invoicedata->pigrandtotal - $pi_agent); ?> 
 														</tr>
 														<tr>
 															<td colspan="8" rowspan="2" style="vertical-align:top">
@@ -1504,7 +1509,20 @@ $this->view('lib/header');
     </div>
 </div>
 <script>
-
+// Ensure block_page/unblock_page exist early (before any handler that uses them)
+if (typeof block_page !== 'function') {
+	window.block_page = function() {
+		if (typeof $.blockUI === 'function') {
+			$.blockUI({ css: { border: 'none', padding: '0px', width: '17%', left: '43%', backgroundColor: '#000', '-webkit-border-radius': '10px', '-moz-border-radius': '10px', opacity: .5, color: '#fff', zIndex: '10000' }, message: '<h3> Please wait...</h3>' });
+		}
+	};
+}
+if (typeof unblock_page !== 'function') {
+	window.unblock_page = function(type, msg) {
+		if (type !== '' && msg !== '' && typeof toastr !== 'undefined') { toastr[type](msg); }
+		if (typeof $.unblockUI === 'function') { setTimeout($.unblockUI, 500); }
+	};
+}
 function edit_loading(con_entry,export_invoice_id)
 {
 	block_page();
@@ -1635,6 +1653,20 @@ if($mode != "Add")
 } 
 ?>
 <script>
+// Ensure block_page/unblock_page exist (fallback if footer not loaded or script order issue)
+if (typeof block_page !== 'function') {
+	window.block_page = function() {
+		if (typeof $.blockUI === 'function') {
+			$.blockUI({ css: { border: 'none', padding: '0px', width: '17%', left: '43%', backgroundColor: '#000', '-webkit-border-radius': '10px', '-moz-border-radius': '10px', opacity: .5, color: '#fff', zIndex: '10000' }, message: '<h3> Please wait...</h3>' });
+		}
+	};
+}
+if (typeof unblock_page !== 'function') {
+	window.unblock_page = function(type, msg) {
+		if (type !== '' && msg !== '' && typeof toastr !== 'undefined') { toastr[type](msg); }
+		if (typeof $.unblockUI === 'function') { setTimeout($.unblockUI, 500); }
+	};
+}
 function deletesample_product(exportproduct_trn_id)
 {
 	Swal.fire({

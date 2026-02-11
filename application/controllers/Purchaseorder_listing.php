@@ -646,12 +646,80 @@ class Purchaseorder_listing extends CI_controller
 			$product_data[$t->purchaseordertrn_id] = $t;
 		}
 		$this->load->model('admin_company_detail');
+		$company_detail = $this->admin_company_detail->s_select();
+		
+		// Get country_final_destination from performa invoice if available
+		if (!empty($data->performa_invoice_id)) {
+			$pi_data = $this->db->select('country_final_destination')
+				->from('tbl_performa_invoice')
+				->where('performa_invoice_id', $data->performa_invoice_id)
+				->get()
+				->row();
+			if ($pi_data && !empty($pi_data->country_final_destination)) {
+				$data->country_final_destination = $pi_data->country_final_destination;
+			}
+		}
+		
 		$v = array(
 			'invoicedata' => $data,
 			'product_data' => $product_data,
-			'company_detail' => $this->admin_company_detail->s_select(),
+			'company_detail' => $company_detail,
 			'menu_data' => $this->menu->usermain_menu($this->session->usertype_id),
 		);
+		$this->load->library('Pdf_service');
+
+		// Generate HTML using the new PO email PDF template
+		ob_start();
+		$this->load->view('admin/po_email_pdf_template', $v);
+		$html_content = ob_get_clean();
+		
+		// Check if view loaded successfully
+		if (empty($html_content) || !is_string($html_content)) {
+			log_message('error', 'Failed to load PO email PDF template for PO ID: ' . $id);
+			$html_content = '<html><body><h1>Error generating PDF</h1></body></html>';
+		}
+
+		// Generate PDF filename
+		$purchase_order_no = !empty($data->purchase_order_no) ? $data->purchase_order_no : 'PO-' . $id;
+		$filename = preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', $purchase_order_no) . '.pdf';
+
+		$path = $this->pdf_service->generateAndStore(
+			$filename,
+			'invoices',
+			$html_content
+		);
+
+		// Prepare email
+		$subject = 'Purchase Order - ' . $purchase_order_no;
+		
+		// Get recipient email - try supplier email first, then company email
+		$recipient_email = '';
+		if (!empty($data->supplier_email)) {
+			$recipient_email = $data->supplier_email;
+		} elseif (!empty($company_detail[0]->s_email)) {
+			$recipient_email = $company_detail[0]->s_email;
+		}
+		
+		// Prepare email body
+		$body = 'Dear ' . (!empty($data->supplier_name) ? $data->supplier_name : 'Supplier') . ',<br><br>';
+		$body .= 'Please find attached the Purchase Order ' . $purchase_order_no . '.<br><br>';
+		$body .= 'Thank you.<br><br>';
+		$body .= 'Best regards,<br>';
+		$body .= !empty($company_detail[0]->s_name) ? $company_detail[0]->s_name : 'ZUKU App';
+
+		// Send email if recipient email is available
+		if (!empty($recipient_email)) {
+			$email_sent = $this->pdf_service->sendEmail($recipient_email, $subject, $body, $path);
+			if ($email_sent) {
+				log_message('info', 'Purchase Order email sent successfully to ' . $recipient_email . ' for PO ID: ' . $id);
+			} else {
+				log_message('error', 'Failed to send Purchase Order email to ' . $recipient_email . ' for PO ID: ' . $id);
+			}
+		} else {
+			log_message('warning', 'No email address found for Purchase Order ID: ' . $id);
+		}
+
+		// Display the view page
 		$this->load->view('admin/view_purchaseorder_listing', $v);
 	}
 

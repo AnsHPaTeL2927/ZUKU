@@ -9,7 +9,7 @@ class Confirm_pi extends CI_controller
 		$this->load->model('admin_invoice_list','invoice');
 	  	$this->load->model('Admin_pdf');
 		$this->load->model('admin_product_invoice','pinv');
-		$this->load->model('menu_model','menu');	
+		$this->load->model('menu_model','menu');
 	  	if (!isset($_SESSION['id']) && $this->session->title == TITLE)
 		{
 	  		redirect(base_url());
@@ -613,5 +613,6 @@ if (!empty($days_filter)) {
 			}
 			echo json_encode($row);
 	  }
+	  
 }
 ?>

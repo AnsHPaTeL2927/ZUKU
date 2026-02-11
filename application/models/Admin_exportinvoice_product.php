@@ -44,7 +44,7 @@ class Admin_exportinvoice_product extends CI_model
 	
 	public function get_invoice_data($id)
 	{
-		$q = $this->db->select('invoice.*,consign.c_name,consign.c_companyname,pi.sign_detail_id,pi.grand_total as pigrandtotal,pi.agent_grand_total as piagentgrandtotal,
+		$q = $this->db->select('invoice.*,consign.c_name,consign.c_companyname,pi.sign_detail_id,pi.grand_total as pigrandtotal,
             user.sign_pi_status,
             user.for_signature_name,
             user.sign_image,

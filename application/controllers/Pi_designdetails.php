@@ -15,7 +15,7 @@ class Pi_designdetails extends CI_controller
 		$this->load->library(array('form_validation','session','encrypt'));
 		$this->load->model('Admin_Producation','producation');
 		$this->load->model('Admin_pdf');
-		$this->load->model('menu_model','menu');	
+		$this->load->model('menu_model','menu');
 		if (!isset($_SESSION['id'])) {
 			redirect(base_url());
 		}
@@ -355,7 +355,11 @@ class Pi_designdetails extends CI_controller
 
 	public function change_row_status()
 	{
-		$this->Admin_pdf->edit_record($this->input->post('id'),$this->input->post('field'),1);
+		$id = $this->input->post('id');
+		$field = $this->input->post('field');
+		
+		$this->Admin_pdf->edit_record($id, $field, 1);
+		
 		$row['res'] = 1;
 		echo json_encode($row);
 	}

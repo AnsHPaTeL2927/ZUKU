@@ -10,7 +10,7 @@ class Exportinvoiceannexure extends CI_controller
 		$this->load->helper('url');
 		$this->load->library(array('form_validation','session','encrypt'));
 		$this->load->model('admin_exportinvoice_product','export');
-		$this->load->model('menu_model','menu');	
+		$this->load->model('menu_model','menu');
 		if (!isset($_SESSION['id']) && $this->session->title == TITLE) {
 			redirect(base_url());
         }
@@ -78,10 +78,11 @@ class Exportinvoiceannexure extends CI_controller
 			 
 	 
 		 $id = $this->input->post('export_annexure_id');
+		$export_invoice_id = $this->input->post('export_invoice_id');
 		if(empty($id))
 		{
 			$step = 4;
-			$updatestepinvoice = $this->export->export_invoice_stepupdate($this->input->post('export_invoice_id'),$step,0);
+			$updatestepinvoice = $this->export->export_invoice_stepupdate($export_invoice_id,$step,0);
 			$rdata = $this->export->insert_exportannexurerecord($data);
 			if($rdata)
 			{	
@@ -91,7 +92,7 @@ class Exportinvoiceannexure extends CI_controller
 		else
 		{
 			$step = 4;
-			$updatestepinvoice = $this->export->export_invoice_stepupdate($this->input->post('export_invoice_id'),$step,0);
+			$updatestepinvoice = $this->export->export_invoice_stepupdate($export_invoice_id,$step,0);
 			
 			$rdata = $this->export->update_exportannexurerecord($data,$id);
 			if($rdata)
@@ -126,6 +127,5 @@ class Exportinvoiceannexure extends CI_controller
 		echo json_encode($row);
 
 	}
-	 
 	
 }

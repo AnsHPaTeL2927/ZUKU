@@ -10,6 +10,7 @@ class Createpo extends CI_controller
 		parent::__construct();
 	 	$this->load->model('admin_po','po');
 		$this->load->model('menu_model','menu');
+		$this->load->library('Pdf_service');
 		if (!isset($_SESSION['id']) && $this->session->title == TITLE) {
 			redirect(base_url());
         }
@@ -145,6 +146,9 @@ class Createpo extends CI_controller
 					$update = $this->po->update_invoicenumber(3,$this->input->post('invoice_series'));
 					$row['res'] = 1;
 					$row['invoiceid'] = $rdata;
+					
+					// 1. PO Created - Send email notification to admin (with PDF)
+					$this->send_po_created_notification($rdata);
 				}
 			}
 			else if(strtolower($this->input->post('mode'))=="edit")
@@ -209,5 +213,125 @@ class Createpo extends CI_controller
         echo json_encode($data);
     } 
 	
+	/**
+	 * Send email notification to admin when PO is created
+	 * @param int $po_id Purchase Order ID
+	 */
+	private function send_po_created_notification($po_id)
+	{
+		try {
+			// Get admin email from company detail
+			$this->load->model('admin_company_detail');
+			$company_detail = $this->admin_company_detail->s_select();
+			$admin_email = !empty($company_detail[0]->s_email) ? $company_detail[0]->s_email : '';
+			
+			if (empty($admin_email)) {
+				log_message('warning', 'Admin email not found for PO created notification - PO ID: ' . $po_id);
+				return;
+			}
+			
+			// Get PO data
+			$this->load->model('Admin_purchaseorderpdf', 'popdf');
+			$po_data = $this->popdf->po_data($po_id);
+			
+			if (!$po_data) {
+				return;
+			}
+			
+			// Generate PDF
+			$pdf_path = $this->generate_po_pdf($po_id);
+			
+			// Prepare email
+			$purchase_order_no = !empty($po_data->purchase_order_no) ? $po_data->purchase_order_no : 'PO-' . $po_id;
+			$subject = 'New Purchase Order Created - ' . $purchase_order_no;
+			
+			$body = 'Dear Admin,<br><br>';
+			$body .= 'A new Purchase Order has been created by the client.<br><br>';
+			$body .= '<strong>Purchase Order Details:</strong><br>';
+			$body .= 'PO Number: ' . $purchase_order_no . '<br>';
+			$body .= 'PO Date: ' . date('d-m-Y', strtotime($po_data->purchase_order_date)) . '<br>';
+			$body .= 'Supplier: ' . (!empty($po_data->company_name) ? $po_data->company_name : 'N/A') . '<br><br>';
+			$body .= 'Please find the attached PDF for details.<br><br>';
+			$body .= 'Thank you.<br><br>';
+			$body .= 'Best regards,<br>ZUKU App';
+			
+			// Send email with PDF attachment
+			$email_sent = $this->pdf_service->sendEmail($admin_email, $subject, $body, $pdf_path);
+			
+			if ($email_sent) {
+				log_message('info', 'PO created email sent successfully to admin for PO ID: ' . $po_id);
+			} else {
+				log_message('error', 'Failed to send PO created email to admin for PO ID: ' . $po_id);
+			}
+		} catch (Exception $e) {
+			log_message('error', 'PO created notification error: ' . $e->getMessage());
+		}
+	}
+	
+	/**
+	 * Generate PO PDF and return path
+	 * @param int $po_id Purchase Order ID
+	 * @return string|false PDF path or false on failure
+	 */
+	private function generate_po_pdf($po_id)
+	{
+		try {
+			$this->load->model('Admin_purchaseorderpdf', 'popdf');
+			$this->load->model('admin_company_detail');
+			
+			$company = $this->popdf->company_select();
+			$data = $this->popdf->po_data($po_id);
+			
+			if (!$data) {
+				return false;
+			}
+			
+			// Get country_final_destination from performa invoice if available
+			if (!empty($data->performa_invoice_id)) {
+				$pi_data = $this->db->select('country_final_destination')
+					->from('tbl_performa_invoice')
+					->where('performa_invoice_id', $data->performa_invoice_id)
+					->get()
+					->row();
+				if ($pi_data && !empty($pi_data->country_final_destination)) {
+					$data->country_final_destination = $pi_data->country_final_destination;
+				}
+			}
+			
+			$datap = $this->popdf->getpo_productdata($po_id, $data->production_mst_id);
+			
+			$view_data = array(
+				'invoicedata' => $data,
+				'product_data' => $datap,
+				'company_detail' => $company,
+				'mode' => ''
+			);
+			
+			// Generate HTML using the email PDF template
+			$html_content = $this->load->view('admin/po_email_pdf_template', $view_data, true);
+			
+			$purchase_order_no = !empty($data->purchase_order_no) ? $data->purchase_order_no : 'PO-' . $po_id;
+			$filename = preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', $purchase_order_no) . '.pdf';
+			
+			$this->load->view('mpdf/mpdf.php');
+			$mpdf = new mPDF('utf-8', 'A4', '7', 'calibri', 5, 5, 5, 5, 0, 0);
+			$mpdf->SetFooter('<div style="text-align:right;">CREATED BY : Zuku Export Software</div>');
+			$mpdf->WriteHTML($html_content);
+			$mpdf->SetTitle($purchase_order_no);
+			
+			$upload_path = './adminast/assets/upload/';
+			if (!is_dir($upload_path)) {
+				mkdir($upload_path, 0755, true);
+			}
+			
+			$file_path = $upload_path . $filename;
+			$mpdf->Output($file_path, 'F');
+			
+			return $file_path;
+		} catch (Exception $e) {
+			log_message('error', 'PO PDF generation error: ' . $e->getMessage());
+			return false;
+		}
+	}
 
 }

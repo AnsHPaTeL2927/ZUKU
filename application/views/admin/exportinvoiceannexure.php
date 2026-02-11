@@ -38,8 +38,13 @@
  }
  $locale='en-US'; //browser or user locale
 $currency=$invoicedata->currency_code; 
-$fmt = new NumberFormatter( $locale."@currency=$currency", NumberFormatter::CURRENCY );
-$currency_symbol = $fmt->getSymbol(NumberFormatter::CURRENCY_SYMBOL);
+if (class_exists('NumberFormatter')) {
+	$fmt = new NumberFormatter( $locale."@currency=$currency", NumberFormatter::CURRENCY );
+	$currency_symbol = $fmt->getSymbol(NumberFormatter::CURRENCY_SYMBOL);
+} else {
+	$currency_symbols = array('USD'=>'$','EUR'=>'€','GBP'=>'£','INR'=>'₹','JPY'=>'¥','AUD'=>'A$','CAD'=>'C$','CHF'=>'CHF','CNY'=>'¥','SGD'=>'S$');
+	$currency_symbol = isset($currency_symbols[$currency]) ? $currency_symbols[$currency] : (empty($currency) ? '$' : $currency . ' ');
+}
   
  $commissionerate = $company_detail[0]->commissionerate;
  if(!empty($annexuredata))
@@ -899,6 +904,20 @@ function filterbystatus(val)
 
 echo "<script>filterbystatus(".$invoicedata->igst_status.")</script>"; ?>
 <script>
+// Ensure block_page/unblock_page exist (fallback if footer not loaded or script order issue)
+if (typeof block_page !== 'function') {
+	window.block_page = function() {
+		if (typeof $.blockUI === 'function') {
+			$.blockUI({ css: { border: 'none', padding: '0px', width: '17%', left: '43%', backgroundColor: '#000', '-webkit-border-radius': '10px', '-moz-border-radius': '10px', opacity: .5, color: '#fff', zIndex: '10000' }, message: '<h3> Please wait...</h3>' });
+		}
+	};
+}
+if (typeof unblock_page !== 'function') {
+	window.unblock_page = function(type, msg) {
+		if (type !== '' && msg !== '' && typeof toastr !== 'undefined') { toastr[type](msg); }
+		if (typeof $.unblockUI === 'function') { setTimeout($.unblockUI, 500); }
+	};
+}
  $("#total_pakage").html(<?=$Total_box?> + ' Boxes')
 $( function() {
     $( "#accordion" ).accordion({

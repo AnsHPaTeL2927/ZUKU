@@ -744,6 +744,20 @@
 </div>
 <?php $this->view('lib/footer'); ?>
 <script>
+// Ensure block_page/unblock_page exist (fallback if footer not loaded or script order issue)
+if (typeof block_page !== 'function') {
+	window.block_page = function() {
+		if (typeof $.blockUI === 'function') {
+			$.blockUI({ css: { border: 'none', padding: '0px', width: '17%', left: '43%', backgroundColor: '#000', '-webkit-border-radius': '10px', '-moz-border-radius': '10px', opacity: .5, color: '#fff', zIndex: '10000' }, message: '<h3> Please wait...</h3>' });
+		}
+	};
+}
+if (typeof unblock_page !== 'function') {
+	window.unblock_page = function(type, msg) {
+		if (type !== '' && msg !== '' && typeof toastr !== 'undefined') { toastr[type](msg); }
+		if (typeof $.unblockUI === 'function') { setTimeout($.unblockUI, 500); }
+	};
+}
 function set_auto_loading_plan(performa_invoice_id)
 {
 	safeBlock();

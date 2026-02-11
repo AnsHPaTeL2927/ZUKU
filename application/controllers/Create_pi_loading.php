@@ -7,7 +7,7 @@ class Create_pi_loading extends CI_controller
 	{
 		parent::__construct();
 	 	$this->load->model('Admin_pdf','pinv');
-		$this->load->model('menu_model','menu');	
+		$this->load->model('menu_model','menu');
 		
 		if (!isset($_SESSION['id']) && $this->session->title == TITLE) {
 			redirect(base_url());
@@ -830,6 +830,23 @@ class Create_pi_loading extends CI_controller
 		}
 		 $row = array();
 		 $row['res'] = 1;
+			
+		// 8. Loading Done - Send email notification to client when container details are filled (with PDF)
+		$performa_invoice_id = $this->input->post('performainvoice_id');
+		if (!empty($performa_invoice_id[0])) {
+			// Check if any container_no was filled (loading done)
+			$container_nos = $this->input->post('container_no');
+			$has_container = false;
+			if (!empty($container_nos)) {
+				foreach ($container_nos as $container_no) {
+					if (!empty($container_no)) {
+						$has_container = true;
+						break;
+					}
+				}
+			}
+			}
+		}
 			
 		echo json_encode($row);
 			 
@@ -1712,4 +1729,5 @@ class Create_pi_loading extends CI_controller
 		}
 		echo json_encode($row);
 	}
+	
 }

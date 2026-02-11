@@ -63,8 +63,13 @@ if (!empty($invoicedata->performa_date)) {
  $_SESSION['export_invoice_no'] = '';
  $locale='en-US'; //browser or user locale
 $currency=$invoicedata->currency_code; 
-$fmt = new NumberFormatter( $locale."@currency=$currency", NumberFormatter::CURRENCY );
-$currency_symbol = $fmt->getSymbol(NumberFormatter::CURRENCY_SYMBOL);
+if (class_exists('NumberFormatter')) {
+	$fmt = new NumberFormatter( $locale."@currency=$currency", NumberFormatter::CURRENCY );
+	$currency_symbol = $fmt->getSymbol(NumberFormatter::CURRENCY_SYMBOL);
+} else {
+	$currency_symbols = array('USD'=>'$','EUR'=>'€','GBP'=>'£','INR'=>'₹','JPY'=>'¥','AUD'=>'A$','CAD'=>'C$','CHF'=>'CHF','CNY'=>'¥','SGD'=>'S$');
+	$currency_symbol = isset($currency_symbols[$currency]) ? $currency_symbols[$currency] : (empty($currency) ? '$' : $currency . ' ');
+}
 $currency_symbol = ($invoicedata->currency_code=="INR")?"<img src='".base_url()."adminast/assets/images/ruppe_sysbol.jpg' />":$currency_symbol;  
 	$supplier_invoice_date ='';
  if($annexuredata->c_date == "1970-01-01" || $annexuredata->c_date == "0000-00-00" || empty($annexuredata->c_date))
@@ -1042,11 +1047,11 @@ function view_pdf(no)
                   
                     <td colspan="3" style="border-right:0.5px solid #333;border-top:0.5px solid #333;text-align:center">DIFFERENCE</td>
                     <td  style="font-weight:bold;text-align:right;border-bottom:0.5px solid #333;">
-					<?php  $pi_diffrence = ($invoicedata->pigrandtotal - $invoicedata->piagentgrandtotal)?> 
+					<?php  $pi_agent = isset($invoicedata->piagentgrandtotal) ? $invoicedata->piagentgrandtotal : 0; $pi_diffrence = ($invoicedata->pigrandtotal - $pi_agent); ?> 
 					<?=$currency_symbol?>
                       <?=($pi_diffrence > 0)?number_format($pi_diffrence,2,'.',''):"0.00" ?></td>
 					   <?php 
-					$Total_amt -=  ($invoicedata->pigrandtotal - $invoicedata->piagentgrandtotal);
+					$Total_amt -=  ($invoicedata->pigrandtotal - $pi_agent);
 					?>
                   </tr>
                   <tr>

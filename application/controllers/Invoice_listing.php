@@ -8,7 +8,8 @@ class Invoice_listing extends CI_controller
 	  	$this->load->helper('url');
 	  	$this->load->library(array('form_validation','session','encrypt'));
 	  	$this->load->model('admin_invoice_list','invoice');
-		$this->load->model('menu_model','menu');	
+	  	$this->load->model('menu_model','menu');
+		$this->load->library('Email_service');
 	  	if (!isset($_SESSION['id']) && $this->session->title == TITLE) {
 	  		redirect(base_url());
 	  	}
@@ -305,17 +306,14 @@ class Invoice_listing extends CI_controller
 	  } 
 	  public function confirmpi()
 	  {
-	  	$id 	= $this->input->post('id');
+	  	$id     = $this->input->post('id');
 	  	$status = $this->input->post('status');
-	  	$deleterecord = $this->invoice->confirmpi($id,$status);	
-	  		if($deleterecord)
-	  		{
-	  			$row['res'] = '1';
-	  		}
-	  		else{
-	  			$row['res'] = '0';
-	  		}
-	  		echo json_encode($row);
+	  	$deleterecord = $this->invoice->confirmpi($id, $status);
+	  	if ($deleterecord && $status == 1) {
+	  		$this->email_service->send_pi_confirmed_email($id);
+	  	}
+	  	$row = array('res' => $deleterecord ? '1' : '0');
+	  	echo json_encode($row);
 	  }
 	  
 	   public function loaded_size()

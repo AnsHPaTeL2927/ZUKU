@@ -56,7 +56,7 @@ class Admin_purchaseorderpdf extends CI_model
 	}
 	public function getpurchaseproductrate($id)
 	{
-		$q= $this->db->select("mst.*,model.model_name,finish.finish_name,model.design_file, design.box_design_name,design.box_design_img,type.pallet_type_name")
+		$q= $this->db->select("mst.*,model.model_name,finish.finish_name,model.design_file, design.box_design_name,design.box_design_img,type.pallet_type_name,mst.packing_net_weight,mst.packing_gross_weight")
 			 ->from("tbl_purchase_packing as mst")
 			 ->join("tbl_packing_model as model","model.packing_model_id=mst.design_id","LEFT")
 			 ->join("tbl_finish as finish","finish.finish_id=mst.finish_id","LEFT")

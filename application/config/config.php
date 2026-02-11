@@ -140,7 +140,7 @@ $config['subclass_prefix'] = 'MY_';
 | Note: This will NOT disable or override the CodeIgniter-specific
 |	autoloading (application/config/autoload.php)
 */
-$config['composer_autoload'] = FALSE;
+$config['composer_autoload'] = FCPATH . 'vendor/autoload.php';
 
 /*
 |--------------------------------------------------------------------------
@@ -527,7 +527,10 @@ $config['rewrite_short_tags'] = FALSE;
 require BASEPATH."helpers/apps_helper.php";
 $config['validation'] 		= FALSE;  
 $config['error_mail'] 		= FALSE; 
-$config['RENEW_DAYS'] 		= 30; 
+$config['RENEW_DAYS'] 		= 30;
+// For testing: set to TRUE to send all notification emails to the test address instead of DB recipient
+$config['email_test_override'] = TRUE;
+$config['email_test_address'] = 'patelansh2918@gmail.com'; 
 
 $config['proxy_ips'] = '';
 function indian_number($n, $d = 0) 
