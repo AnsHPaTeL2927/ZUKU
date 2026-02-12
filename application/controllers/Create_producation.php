@@ -495,6 +495,10 @@ class Create_producation extends CI_controller
 		echo json_encode($row);
 	}
 	
+	/**
+	 * QC Done action (same pattern as PO view / PI Confirm).
+	 * When admin clicks QC Done: update QC status and send email notification only (no SMS).
+	 */
 	public function click_for_qc()
 	{
 		$production_mst_id_post = $this->input->post('qcproduction_mst_id');
@@ -507,15 +511,14 @@ class Create_producation extends CI_controller
 					
 		if($deleterecord)
 		{
-			// Send email notification when QC is done (status == 1)
+			// Email notification only when QC is done (status == 1) – same as PI confirm; no SMS
 			if($status == 1)
 			{
-				// Get production IDs as array for email notification
-				$production_ids = explode("-", $production_mst_id_post);
+				$production_ids = array_filter(explode("-", $production_mst_id_post));
 				foreach($production_ids as $prod_id)
 				{
 					$prod_id = trim($prod_id);
-					if(!empty($prod_id) && is_numeric($prod_id))
+					if($prod_id !== '' && is_numeric($prod_id))
 					{
 						$this->email_service->send_qc_done_email($prod_id);
 					}

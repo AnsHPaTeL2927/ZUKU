@@ -239,6 +239,7 @@ class Email_service
 
     /**
      * Send QC done email notification (call when admin marks QC as done).
+     * Email only – no SMS. Uses same pattern as PI confirm / PO view (Pdf_service->sendEmail).
      * @param int $production_mst_id Production Master ID
      * @return bool
      */
