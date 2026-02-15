@@ -238,6 +238,80 @@ class Email_service
     }
 
     /**
+     * Send production done email notification with PDF (call when admin clicks Final Production).
+     * Email includes: old boxes from PI, current boxes, pallets, sqm, batch no, location.
+     * @param int $production_mst_id Production Master ID
+     * @return bool
+     */
+    public function send_production_done_email($production_mst_id)
+    {
+        try {
+            $this->CI->load->model('Admin_pdf');
+            $mst_data = $this->CI->Admin_pdf->producation_mst_data($production_mst_id);
+            if (!$mst_data) {
+                log_message('warning', 'Email_service send_production_done_email: production data not found for ID ' . $production_mst_id);
+                return false;
+            }
+
+            $client_email = (!empty($mst_data->c_email)) ? $mst_data->c_email : '';
+            if (empty($client_email) && $this->CI->config->item('email_test_override') && $this->CI->config->item('email_test_address')) {
+                $client_email = $this->CI->config->item('email_test_address');
+            }
+            if (empty($client_email)) {
+                log_message('warning', 'Email_service send_production_done_email: no recipient for Production ID ' . $production_mst_id);
+                return false;
+            }
+
+            $rows = $this->CI->Admin_pdf->get_production_done_rows($production_mst_id);
+            $production_no = !empty($mst_data->producation_no) ? $mst_data->producation_no : 'PROD-' . $production_mst_id;
+            $subject = 'Production Done - ' . $production_no;
+
+            $customer_name = (!empty($mst_data->c_name)) ? $mst_data->c_name :
+                            (!empty($mst_data->c_companyname) ? $mst_data->c_companyname : 'Client');
+
+            $view_data = array(
+                'mst_data' => $mst_data,
+                'rows'     => $rows
+            );
+            $html = $this->CI->load->view('admin/production_done_email_pdf', $view_data, true);
+
+            $filename = preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', 'Production_Done_' . $production_no) . '.pdf';
+            $this->dompdf->loadHtml($html);
+            $this->dompdf->setPaper('A4', 'portrait');
+            $this->dompdf->render();
+            $output = $this->dompdf->output();
+
+            $basePath = FCPATH . 'uploads/invoices/';
+            if (!is_dir($basePath)) {
+                mkdir($basePath, 0777, true);
+            }
+            $file_path = $basePath . $filename;
+            file_put_contents($file_path, $output);
+            $attachment_path = 'uploads/invoices/' . $filename;
+
+            $body = 'Dear ' . $customer_name . ',<br><br>';
+            $body .= 'This is to inform you that production has been completed for your order.<br><br>';
+            $body .= '<strong>Production Details:</strong><br>';
+            $body .= 'Production Number: ' . $production_no . '<br>';
+            if (!empty($mst_data->invoice_no)) {
+                $body .= 'Proforma Invoice Number: ' . $mst_data->invoice_no . '<br>';
+            }
+            if (!empty($mst_data->producation_date)) {
+                $body .= 'Production Date: ' . date('d-m-Y', strtotime($mst_data->producation_date)) . '<br>';
+            }
+            $body .= '<br>Please find the attached PDF for complete details (old boxes from PI, current boxes, pallets, SQM, batch no, location).<br><br>';
+            $body .= 'Thank you.<br><br>Best regards,<br>ZUKU App';
+
+            $this->CI->load->library('Pdf_service');
+            $sent = $this->CI->pdf_service->sendEmail($client_email, $subject, $body, $attachment_path);
+            return $sent;
+        } catch (Throwable $e) {
+            log_message('error', 'Email_service send_production_done_email: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
      * Send QC done email notification (call when admin marks QC as done).
      * Email only – no SMS. Uses same pattern as PI confirm / PO view (Pdf_service->sendEmail).
      * @param int $production_mst_id Production Master ID

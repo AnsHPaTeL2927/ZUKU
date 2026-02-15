@@ -8,6 +8,7 @@ class Producation_detail extends CI_controller
 		parent::__construct();
 		$this->load->helper('url');
 		$this->load->library(array('form_validation','session','encrypt'));
+		$this->load->library('Email_service');
 		$this->load->model('Admin_Producation','producation');
 		$this->load->model('Admin_pdf','pinv');
 		$this->load->model('menu_model','menu');
@@ -309,13 +310,19 @@ class Producation_detail extends CI_controller
 	  	  
   public function final_production()
 	{
-		$id = $this->input->post('production_mst_id');
+		$id = (int) $this->input->post('production_mst_id');
+		if ($id <= 0) {
+			echo "0";
+			return;
+		}
 
 		$this->db->where('production_mst_id', $id)
 				 ->update('tbl_production_mst', [
 						'production_status' => 1,
 						'production_complete_date' => date('Y-m-d')
 				 ]);
+
+		$this->email_service->send_production_done_email($id);
 
 		echo "1";
 	}

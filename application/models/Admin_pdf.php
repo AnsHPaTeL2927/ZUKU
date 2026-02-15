@@ -3277,6 +3277,33 @@ public function productio_entry_record($id)
 		return $row;
 	}
 
+	/**
+	 * Get production done report rows (for email PDF): PI order boxes + current production values
+	 */
+	public function get_production_done_rows($production_mst_id)
+	{
+		$this->db->select('
+			trn.production_trn_id, trn.no_of_boxes, trn.no_of_pallet, trn.no_of_big_pallet, trn.no_of_small_pallet,
+			trn.no_of_sqm, trn.pro_batch, trn.pro_shade,
+			mst.producation_no, pmodel.model_name, f.finish_name, pro.size_type_mm,
+			ptrn.sqm_per_box, ptrn.boxes_per_pallet, ptrn.box_per_big_pallet, ptrn.box_per_small_pallet,
+			ppacking.no_of_boxes as pi_order_boxes
+		');
+		$this->db->from('tbl_production_trn trn');
+		$this->db->join('tbl_production_mst mst', 'mst.production_mst_id = trn.production_mst_id', 'INNER');
+		$this->db->join('tbl_performa_packing ppacking', 'ppacking.performa_packing_id = trn.performa_packing_id', 'INNER');
+		$this->db->join('tbl_performa_trn ptrn', 'ptrn.performa_trn_id = ppacking.performa_trn_id', 'INNER');
+		$this->db->join('tbl_product pro', 'pro.product_id = ptrn.product_id', 'INNER');
+		$this->db->join('tbl_packing_model pmodel', 'pmodel.packing_model_id = ppacking.design_id', 'INNER');
+		$this->db->join('tbl_finish f', 'f.finish_id = ppacking.finish_id', 'INNER');
+		$this->db->where('trn.production_mst_id', (int) $production_mst_id);
+		$this->db->order_by('pmodel.model_name', 'ASC');
+		$this->db->order_by('IFNULL(trn.parent_trn_id, trn.production_trn_id)', 'ASC', FALSE);
+		$this->db->order_by('trn.parent_trn_id IS NOT NULL', 'ASC', FALSE);
+		$this->db->order_by('trn.production_trn_id', 'ASC');
+		return $this->db->get()->result();
+	}
+
 	public function update_producation_pallet($production_mst_id,$status)
 
 	{
