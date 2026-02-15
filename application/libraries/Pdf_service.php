@@ -33,9 +33,9 @@ class Pdf_service
         try {
 
             // Ensure .pdf extension
-            if (!str_ends_with($fileName, '.pdf')) {
-                $fileName .= '.pdf';
-            }
+            if (strlen($fileName) < 4 || substr_compare($fileName, '.pdf', -4, 4) !== 0) {
+				$fileName .= '.pdf';
+			}
 
             $basePath = FCPATH . 'uploads/' . $folderName . '/';
 
