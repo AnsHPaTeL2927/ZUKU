@@ -248,6 +248,36 @@ $this->view('lib/addcurrency');
     </div>
 </div>
 
+<div id="psc_date_modal" class="modal fade" role="dialog">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">PSC Date</h4>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="control-label">Today's Date</label>
+                    <input type="text" id="psc_today_date" class="form-control" readonly disabled value="">
+                </div>
+                <div class="form-group">
+                    <label class="control-label">Estimated Date</label>
+                    <input type="text" id="psc_estimated_date" class="form-control" placeholder="Select Estimated Date">
+                </div>
+                <div class="form-group">
+                    <label class="control-label">Count Days</label>
+                    <input type="text" id="psc_count_days" class="form-control" readonly disabled value="" placeholder="0">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" onclick="save_psc_date();">Submit</button>
+                <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                <input type="hidden" id="psc_production_mst_id" value="">
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="productionModal" tabindex="-1" role="dialog">
   <div class="modal-dialog modal-lg">
       <div class="modal-content">
@@ -830,6 +860,158 @@ $('.defualt-date-picker').datepicker({
 	 format:'dd-mm-yyyy',
 	 
  }); 
+function psc_calculate_days(estDateObj) {
+	var todayStr = $("#psc_today_date").val();
+	var estStr  = $("#psc_estimated_date").val();
+	if (!todayStr) { $("#psc_count_days").val(""); return; }
+	var todayParts = todayStr.split(/[-/]/);
+	if (todayParts.length !== 3) { $("#psc_count_days").val(""); return; }
+	var todayDate = new Date(parseInt(todayParts[2], 10), parseInt(todayParts[1], 10) - 1, parseInt(todayParts[0], 10));
+	todayDate.setHours(0, 0, 0, 0);
+	var estDate;
+	if (estDateObj && estDateObj instanceof Date) {
+		estDate = new Date(estDateObj);
+	} else if (estStr) {
+		var estParts = estStr.split(/[-/]/);
+		if (estParts.length !== 3) { $("#psc_count_days").val(""); return; }
+		estDate = new Date(parseInt(estParts[2], 10), parseInt(estParts[1], 10) - 1, parseInt(estParts[0], 10));
+	} else {
+		$("#psc_count_days").val("");
+		return;
+	}
+	estDate.setHours(0, 0, 0, 0);
+	var diffDays = Math.floor((estDate - todayDate) / (1000 * 60 * 60 * 24));
+	$("#psc_count_days").val(isNaN(diffDays) ? "" : diffDays);
+}
+function open_psc_date_modal(production_mst_id) {
+	$("#psc_production_mst_id").val(production_mst_id);
+	try { $("#psc_estimated_date").datepicker("destroy"); } catch(e) {}
+	$("#psc_today_date").val("");
+	$("#psc_estimated_date").val("");
+	$("#psc_count_days").val("");
+
+	var today = new Date();
+	var dd = ("0" + today.getDate()).slice(-2);
+	var mm = ("0" + (today.getMonth() + 1)).slice(-2);
+	var yyyy = today.getFullYear();
+	var todayStr = dd + "-" + mm + "-" + yyyy;
+	var todayDate = new Date(parseInt(yyyy,10), parseInt(mm,10)-1, parseInt(dd,10));
+	todayDate.setHours(0,0,0,0);
+
+	function initAndShowModal(prefill) {
+		if (prefill && prefill.res == 1) {
+			$("#psc_today_date").val(prefill.psc_date || todayStr);
+			$("#psc_estimated_date").val(prefill.psc_estimated_date || "");
+			$("#psc_count_days").val(prefill.psc_count_days !== null && prefill.psc_count_days !== undefined ? prefill.psc_count_days : "");
+		} else {
+			$("#psc_today_date").val(todayStr);
+			$("#psc_estimated_date").val("");
+			$("#psc_count_days").val("");
+		}
+		var startDateVal = $("#psc_today_date").val();
+		try { $("#psc_estimated_date").datepicker("destroy"); } catch(e) {}
+		$("#psc_estimated_date").datepicker({
+			autoclose: true,
+			format: 'dd-mm-yyyy',
+			startDate: startDateVal,
+			todayHighlight: true,
+			beforeShowDay: function(d) {
+				var dNorm = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+				dNorm.setHours(0,0,0,0);
+				return { enabled: dNorm >= todayDate };
+			}
+		}).off("changeDate change keyup").on("changeDate", function(e) {
+			if (e && e.date) {
+				var d = e.date;
+				var fd = ("0" + d.getDate()).slice(-2);
+				var fm = ("0" + (d.getMonth() + 1)).slice(-2);
+				var fy = d.getFullYear();
+				$(this).val(fd + "-" + fm + "-" + fy);
+				psc_calculate_days(d);
+			}
+		}).on("change", function() {
+			var v = $(this).val();
+			if (v && /^\d{1,2}[-\/]\d{1,2}[-\/]\d{4}$/.test(v)) {
+				var parts = v.split(/[-\/]/);
+				var p0 = parseInt(parts[0],10), p1 = parseInt(parts[1],10), p2 = parseInt(parts[2],10);
+				if (p0 <= 12 && p1 > 12) {
+					var want = ("0"+p1).slice(-2) + "-" + ("0"+p0).slice(-2) + "-" + p2;
+					if ($(this).val() !== want) $(this).val(want);
+				}
+			}
+		}).on("change keyup", function() {
+			var v = $(this).val();
+			if (!v) { psc_calculate_days(null); return; }
+			var parts = v.split(/[-\/]/);
+			if (parts.length === 3) {
+				var p0 = parseInt(parts[0],10), p1 = parseInt(parts[1],10), p2 = parseInt(parts[2],10);
+				if (p1 > 12 && p0 <= 12) {
+					$(this).val(("0"+p1).slice(-2) + "-" + ("0"+p0).slice(-2) + "-" + p2);
+				} else if (v.indexOf("/") !== -1) {
+					$(this).val(v.replace(/\//g, "-"));
+				}
+			}
+			psc_calculate_days(null);
+		});
+		$("#psc_date_modal").modal({ backdrop: 'static', keyboard: false });
+	}
+
+	$.ajax({
+		type: "POST",
+		url: root + "producation_detail/get_psc_dates",
+		data: { production_mst_id: production_mst_id },
+		cache: false,
+		dataType: "json",
+		success: function(resp) {
+			initAndShowModal(resp);
+		},
+		error: function() {
+			initAndShowModal(null);
+		}
+	});
+}
+function save_psc_date() {
+	var production_mst_id = $("#psc_production_mst_id").val();
+	var psc_today_date   = $("#psc_today_date").val();
+	var psc_estimated_date = $("#psc_estimated_date").val();
+	var psc_count_days   = $("#psc_count_days").val();
+	if (!psc_estimated_date) {
+		Swal.fire({ icon: 'warning', title: 'Required', text: 'Please select Estimated Date.' });
+		return;
+	}
+	var countDays = parseInt(psc_count_days, 10);
+	if (!isNaN(countDays) && countDays < 0) {
+		Swal.fire({ icon: 'error', title: 'Invalid Date', text: 'Please add future and correct date. You can\'t add past dates.' });
+		return;
+	}
+	block_page();
+	$.ajax({
+		type: "POST",
+		url: root + "producation_detail/save_psc_date",
+		data: {
+			production_mst_id: production_mst_id,
+			psc_today_date: psc_today_date,
+			psc_estimated_date: psc_estimated_date,
+			psc_count_days: psc_count_days
+		},
+		cache: false,
+		success: function(response) {
+			unblock_page("", "");
+			var obj = (typeof response === "string") ? JSON.parse(response) : response;
+			if (obj.res == 1) {
+				$("#psc_date_modal").modal("hide");
+				Swal.fire({ icon: 'success', title: 'Saved', text: 'PSC dates saved successfully.' });
+				load_data();
+			} else {
+				Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to save PSC dates.' });
+			}
+		},
+		error: function() {
+			unblock_page("", "");
+			Swal.fire({ icon: 'error', title: 'Error', text: 'Request failed.' });
+		}
+	});
+}
 $(document).ready(function () {
 	load_data();	
 });

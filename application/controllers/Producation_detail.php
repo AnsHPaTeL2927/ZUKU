@@ -272,6 +272,10 @@ class Producation_detail extends CI_controller
 						';
 					}
 					
+					$psc_date_btn = '<li>
+						<a class="tooltips" data-toggle="tooltip" data-title="PSC Date" href="javascript:;" onclick="open_psc_date_modal('.$row->production_mst_id.')"><i class="fa fa-calendar"></i> PSC Date</a>
+					</li>';
+					
 				 	$row_data[] = $check_box.'  &nbsp; &nbsp; <div class="dropdown" style="float: left;width:70%">
 										<button class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown">Action
 										<span class="caret"></span></button>
@@ -280,7 +284,8 @@ class Producation_detail extends CI_controller
 												'.$next_btn.' 	
 												
 												'.$pallet_order.' 	
-												'.$qcbtn.' 													
+												'.$qcbtn.'
+												'.$psc_date_btn.' 													
 											 	'.$po_btn.' 
 											 	'.$action_btn.' 
 												
@@ -589,6 +594,79 @@ public function update_sqm()
 		$resultdata->producation_date = date('d-m-Y',strtotime($resultdata->producation_date));
 		echo json_encode($resultdata);
 	}
+
+	/**
+	 * Save PSC dates (today, estimated, count days) to tbl_production_mst
+	 */
+	public function save_psc_date()
+	{
+		$production_mst_id = (int) $this->input->post('production_mst_id');
+		$psc_today_str     = $this->input->post('psc_today_date');
+		$psc_estimated_str = $this->input->post('psc_estimated_date');
+		$psc_count_days    = $this->input->post('psc_count_days');
+
+		$row = array('res' => 0);
+		if ($production_mst_id <= 0 || empty($psc_today_str) || empty($psc_estimated_str)) {
+			echo json_encode($row);
+			return;
+		}
+
+		$psc_date          = $this->ddmmyyyy_to_ymd($psc_today_str);
+		$psc_estimated_date = $this->ddmmyyyy_to_ymd($psc_estimated_str);
+		if (!$psc_date || !$psc_estimated_date) {
+			echo json_encode($row);
+			return;
+		}
+
+		$data = array(
+			'psc_date'           => $psc_date,
+			'psc_estimated_date' => $psc_estimated_date,
+			'psc_count_days'     => is_numeric($psc_count_days) ? (int) $psc_count_days : null
+		);
+
+		$ok = $this->pinv->update_psc_dates($production_mst_id, $data);
+		$row['res'] = $ok ? 1 : 0;
+		echo json_encode($row);
+	}
+
+	/**
+	 * Fetch PSC dates for a production record (for pre-filling modal)
+	 */
+	public function get_psc_dates()
+	{
+		$production_mst_id = (int) $this->input->post('production_mst_id');
+		$row = array('res' => 0, 'psc_date' => null, 'psc_estimated_date' => null, 'psc_count_days' => null);
+		if ($production_mst_id <= 0) {
+			echo json_encode($row);
+			return;
+		}
+		$data = $this->pinv->get_psc_dates($production_mst_id);
+		if ($data && ($data->psc_date || $data->psc_estimated_date)) {
+			$row['res'] = 1;
+			if ($data->psc_date) {
+				$row['psc_date'] = date('d-m-Y', strtotime($data->psc_date));
+			}
+			if ($data->psc_estimated_date) {
+				$row['psc_estimated_date'] = date('d-m-Y', strtotime($data->psc_estimated_date));
+			}
+			$row['psc_count_days'] = $data->psc_count_days !== null ? (int) $data->psc_count_days : null;
+		}
+		echo json_encode($row);
+	}
+
+	private function ddmmyyyy_to_ymd($str)
+	{
+		$str = trim($str);
+		if (empty($str)) return null;
+		$parts = preg_split('/[-\/]/', $str);
+		if (count($parts) !== 3) return null;
+		$day   = (int) $parts[0];
+		$month = (int) $parts[1];
+		$year  = (int) $parts[2];
+		if ($day < 1 || $day > 31 || $month < 1 || $month > 12 || $year < 1900) return null;
+		return sprintf('%04d-%02d-%02d', $year, $month, $day);
+	}
+
 	public function delete_producation()
 	{
 		$id=$this->input->post('id');

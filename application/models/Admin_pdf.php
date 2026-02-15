@@ -3262,6 +3262,21 @@ public function productio_entry_record($id)
 
 	}
 
+	public function update_psc_dates($production_mst_id, $data)
+	{
+		$this->db->where('production_mst_id', (int) $production_mst_id);
+		return $this->db->update('tbl_production_mst', $data);
+	}
+
+	public function get_psc_dates($production_mst_id)
+	{
+		$this->db->select('psc_date, psc_estimated_date, psc_count_days');
+		$this->db->from('tbl_production_mst');
+		$this->db->where('production_mst_id', (int) $production_mst_id);
+		$row = $this->db->get()->row();
+		return $row;
+	}
+
 	public function update_producation_pallet($production_mst_id,$status)
 
 	{

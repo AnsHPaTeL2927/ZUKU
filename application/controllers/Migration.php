@@ -337,4 +337,33 @@ class Migration extends CI_Controller {
         }
         echo '<p><a href="' . base_url() . 'producation_detail">Go to Production Detail</a></p>';
     }
+
+    /**
+     * Run PSC dates migration directly (adds psc_date, psc_estimated_date, psc_count_days to tbl_production_mst)
+     */
+    public function run_psc_dates()
+    {
+        $this->load->library('migration');
+        $migration_file = APPPATH . 'migrations/20260212130000_add_psc_dates_to_production_mst.php';
+        if (!is_file($migration_file)) {
+            show_error('PSC dates migration file not found.');
+        }
+
+        include_once($migration_file);
+        if (!class_exists('Migration_Add_psc_dates_to_production_mst', FALSE)) {
+            show_error('Migration class not found.');
+        }
+
+        try {
+            $migration = new Migration_Add_psc_dates_to_production_mst();
+            $migration->up();
+            $this->db->update('migrations', array('version' => '20260212130000'));
+            echo '<h1>PSC dates migration completed!</h1>';
+            echo '<p>Columns psc_date, psc_estimated_date, psc_count_days added to tbl_production_mst (or already exist).</p>';
+        } catch (Exception $e) {
+            echo '<h1>Migration Error!</h1>';
+            echo '<p>' . htmlspecialchars($e->getMessage()) . '</p>';
+        }
+        echo '<p><a href="' . base_url() . 'producation_detail">Go to Production Detail</a></p>';
+    }
 }
