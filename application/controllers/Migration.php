@@ -305,4 +305,36 @@ class Migration extends CI_Controller {
             echo '<p><a href="' . base_url() . '">Go to Home</a></p>';
         }
     }
+
+    /**
+     * Add qc_status column to tbl_production_mst (0 = QC Pending, 1 = QC Done).
+     */
+    public function run_qc_status()
+    {
+        $this->load->database();
+        $this->load->library('migration');
+        $this->load->dbforge();
+
+        $migration_file = APPPATH . 'migrations/20260212120000_add_qc_status_to_production_mst.php';
+        if (!is_file($migration_file)) {
+            show_error('qc_status migration file not found.');
+        }
+
+        include_once($migration_file);
+        if (!class_exists('Migration_Add_qc_status_to_production_mst', FALSE)) {
+            show_error('Migration class not found.');
+        }
+
+        try {
+            $migration = new Migration_Add_qc_status_to_production_mst();
+            $migration->up();
+            $this->db->update('migrations', array('version' => '20260212120000'));
+            echo '<h1>qc_status migration completed!</h1>';
+            echo '<p>Column qc_status added to tbl_production_mst (or already exists).</p>';
+        } catch (Exception $e) {
+            echo '<h1>Migration Error!</h1>';
+            echo '<p>' . htmlspecialchars($e->getMessage()) . '</p>';
+        }
+        echo '<p><a href="' . base_url() . 'producation_detail">Go to Production Detail</a></p>';
+    }
 }

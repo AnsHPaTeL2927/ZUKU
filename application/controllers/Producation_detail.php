@@ -127,21 +127,18 @@ class Producation_detail extends CI_controller
 										';
 							}
 							
-							if(!empty($setting_data->qc_checked))
-							 {
-								if($row->qc_status == 1)
-								{
-									$row_data[]  = ' 
-										<a class=" tooltips" data-toggle="tooltip" data-title="QC Done" href="javascript:;">
-										QC Done</a>';
-								}
-								else
-								{
-									$row_data[]  = ' 
-									
-												<a class=" tooltips" data-toggle="tooltip" data-title="Click to confirm QC" href="javascript:;" onclick="click_for_qc('.$row->production_mst_id.',1);"> <input type="checkbox" id="qcproduction_mst_id'.$row->production_mst_id.'"  name="qcproduction_mst_id[]"   value="'.$row->production_mst_id.'"      />   QC Pending   </a>
-											';
-								}
+							if($row->qc_status == 1)
+							{
+								$row_data[]  = ' 
+									<a class=" tooltips" data-toggle="tooltip" data-title="QC Done" href="javascript:;">
+									QC Done</a>';
+							}
+							else
+							{
+								$row_data[]  = ' 
+								
+											<a class=" tooltips" data-toggle="tooltip" data-title="Click to confirm QC" href="javascript:;" onclick="click_for_qc('.$row->production_mst_id.',1);"> <input type="checkbox" id="qcproduction_mst_id'.$row->production_mst_id.'"  name="qcproduction_mst_id[]"   value="'.$row->production_mst_id.'"      />   QC Pending   </a>
+										';
 							}
 							if(!empty($setting_data->palletization_checked))
 							{

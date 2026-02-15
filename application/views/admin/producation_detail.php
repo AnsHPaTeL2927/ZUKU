@@ -139,10 +139,6 @@ function view_pdf(no)
 													 
 													</th>	
 													
-													<?php
-													if(!empty($setting_data->qc_checked))
-													{
-													?>
 													<th>
 													 
 															<input type="checkbox"   name="qcproduction_mst_id" id="qcproduction_mst_id" value="" onclick="click_all(this.checked)"    />   
@@ -150,10 +146,8 @@ function view_pdf(no)
 															 <a  class="btn btn-info tooltips" data-toggle="tooltip" data-title="QC Done" href="javascript:;" onclick="peform_action(1)">    
 															  QC </a> 
 													 
-													</th>	
-													<?php 
-													}
-													 
+													</th>
+													<?php
 													if(!empty($setting_data->palletization_checked))
 													{
 													?>
@@ -469,9 +463,7 @@ function load_data() {
             { "bSortable": true },
             { "bSortable": true },
             { "bSortable": false },
-            <?php if (!empty($setting_data->qc_checked)) { ?>
-                { "bSortable": false },
-            <?php } ?>
+            { "bSortable": false },
             <?php if (!empty($setting_data->palletization_checked)) { ?>
                 { "bSortable": false },
             <?php } ?>
