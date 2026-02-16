@@ -480,4 +480,77 @@ class Email_service
             return false;
         }
     }
+
+    /**
+     * Send Loading Done email to client when admin fills container details and clicks Save.
+     * Attaches PDF with all container details (container no, seal, booking, product, weights, etc).
+     * @param int $performa_invoice_id Proforma Invoice ID
+     * @return bool
+     */
+    public function send_loading_done_email($performa_invoice_id)
+    {
+        try {
+            $this->CI->load->model('Admin_pdf');
+            $invoicedata = $this->CI->Admin_pdf->select_invoice_data($performa_invoice_id);
+            if (!$invoicedata) {
+                log_message('warning', 'Email_service send_loading_done_email: PI data not found for ID ' . $performa_invoice_id);
+                return false;
+            }
+
+            $set_container = $this->CI->Admin_pdf->product_set_data($performa_invoice_id, -1);
+            if (empty($set_container)) {
+                log_message('warning', 'Email_service send_loading_done_email: no container data for PI ID ' . $performa_invoice_id);
+                return false;
+            }
+
+            $this->CI->load->model('Admin_invoice');
+            $customer_data = $this->CI->Admin_invoice->customerdetail($invoicedata->consigne_id);
+            $client_email = (!empty($customer_data) && !empty($customer_data->c_email)) ? $customer_data->c_email : '';
+            if (empty($client_email) && !empty($customer_data->c_email_address)) {
+                $client_email = $customer_data->c_email_address;
+            }
+            if (empty($client_email) && $this->CI->config->item('email_test_override') && $this->CI->config->item('email_test_address')) {
+                $client_email = $this->CI->config->item('email_test_address');
+            }
+            if (empty($client_email)) {
+                log_message('warning', 'Email_service send_loading_done_email: no recipient for PI ID ' . $performa_invoice_id);
+                return false;
+            }
+
+            $invoice_no = !empty($invoicedata->invoice_no) ? $invoicedata->invoice_no : 'PI-' . $performa_invoice_id;
+            $customer_name = (!empty($customer_data) && !empty($customer_data->c_name)) ? $customer_data->c_name :
+                            (!empty($customer_data->c_companyname) ? $customer_data->c_companyname : 'Client');
+
+            $view_data = array('invoicedata' => $invoicedata, 'set_container' => $set_container);
+            $html = $this->CI->load->view('admin/pi_container_details_email_pdf_template', $view_data, true);
+
+            $filename = preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', 'Loading_Done_' . $invoice_no) . '.pdf';
+            $this->dompdf->loadHtml($html);
+            $this->dompdf->setPaper('A4', 'portrait');
+            $this->dompdf->render();
+            $output = $this->dompdf->output();
+
+            $basePath = FCPATH . 'uploads/invoices/';
+            if (!is_dir($basePath)) {
+                mkdir($basePath, 0777, true);
+            }
+            $file_path = $basePath . $filename;
+            file_put_contents($file_path, $output);
+            $attachment_path = 'uploads/invoices/' . $filename;
+
+            $subject = 'Loading Done - Container Details - ' . $invoice_no;
+            $body = 'Dear ' . $customer_name . ',<br><br>';
+            $body .= 'This is to inform you that container loading has been completed for your order.<br><br>';
+            $body .= '<strong>Invoice Number:</strong> ' . $invoice_no . '<br>';
+            $body .= '<br>Please find the attached PDF containing all container details (container numbers, seals, booking, product details, weights, etc).<br><br>';
+            $body .= 'Thank you.<br><br>Best regards,<br>ZUKU App';
+
+            $this->CI->load->library('Pdf_service');
+            $sent = $this->CI->pdf_service->sendEmail($client_email, $subject, $body, $attachment_path);
+            return $sent;
+        } catch (Throwable $e) {
+            log_message('error', 'Email_service send_loading_done_email: ' . $e->getMessage());
+            return false;
+        }
+    }
 }

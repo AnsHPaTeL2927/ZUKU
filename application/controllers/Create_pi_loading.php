@@ -634,7 +634,27 @@ class Create_pi_loading extends CI_controller
 				
 				$no++; 
 			}				
- 
+
+			// Send Loading Done email to client when container details are filled
+			$performa_ids = $this->input->post('performainvoice_id');
+			$container_nos = $this->input->post('container_no');
+			$any_filled = false;
+			if (!empty($container_nos) && is_array($container_nos)) {
+				foreach ($container_nos as $cn) {
+					if (!empty(trim((string)$cn))) {
+						$any_filled = true;
+						break;
+					}
+				}
+			}
+			if ($any_filled && !empty($performa_ids) && is_array($performa_ids)) {
+				$performa_invoice_id = (int)$performa_ids[0];
+				if ($performa_invoice_id > 0) {
+					$this->load->library('Email_service');
+					$this->email_service->send_loading_done_email($performa_invoice_id);
+				}
+			}
+
 		 $row['res'] = "1";
 		echo json_encode($row);
 
