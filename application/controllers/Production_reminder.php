@@ -62,12 +62,12 @@ class Production_reminder extends CI_controller
 		$records = $this->admin_pdf->get_production_reminder_records($days);
 
 		if (empty($records)) {
-			$log('No production sheets due within ' . $days . ' day(s). Skipping email.');
+			$log('No production sheets with exactly ' . $days . ' day(s) left. Skipping email.');
 			return;
 		}
 
 		$count = count($records);
-		$log('Found ' . $count . ' production sheet(s) due within ' . $days . ' day(s). Sending email...');
+		$log('Found ' . $count . ' production sheet(s) with exactly ' . $days . ' day(s) left. Sending email...');
 
 		$sent = $this->email_service->send_production_reminder_email($records, $days);
 

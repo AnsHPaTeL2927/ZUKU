@@ -3278,8 +3278,8 @@ public function productio_entry_record($id)
 	}
 
 	/**
-	 * Count production sheets due within X days (PSC estimated date).
-	 * Used for Production Reminder notification.
+	 * Count production sheets that have exactly X days left (PSC estimated date).
+	 * Used for Production Reminder notification. Fires only when days_left equals configured days.
 	 */
 	public function get_production_reminder_count($days = 2)
 	{
@@ -3289,15 +3289,15 @@ public function productio_entry_record($id)
 		$this->db->from('tbl_production_mst');
 		$this->db->where('psc_estimated_date IS NOT NULL');
 		$this->db->where('psc_estimated_date >=', date('Y-m-d'));
-		$this->db->where('DATEDIFF(psc_estimated_date, CURDATE()) <=', $days);
+		$this->db->where('DATEDIFF(psc_estimated_date, CURDATE()) =', $days);
 		$this->db->where('status', 0);
 		$row = $this->db->get()->row();
 		return $row ? (int) $row->cnt : 0;
 	}
 
 	/**
-	 * Get production sheets due within X days (PSC estimated date) for email reminder.
-	 * Returns records with production_no, invoice_no, psc_estimated_date, consignee, supplier.
+	 * Get production sheets that have exactly X days left (PSC estimated date) for email reminder.
+	 * Fires only when days_left equals configured days. Returns records with production_no, invoice_no, etc.
 	 */
 	public function get_production_reminder_records($days = 2)
 	{
@@ -3312,7 +3312,7 @@ public function productio_entry_record($id)
 		$this->db->join('tbl_supplier sup', 'sup.supplier_id = mst.supplier_id', 'LEFT');
 		$this->db->where('mst.psc_estimated_date IS NOT NULL');
 		$this->db->where('mst.psc_estimated_date >=', date('Y-m-d'));
-		$this->db->where('DATEDIFF(mst.psc_estimated_date, CURDATE()) <=', $days);
+		$this->db->where('DATEDIFF(mst.psc_estimated_date, CURDATE()) =', $days);
 		$this->db->where('mst.status', 0);
 		$this->db->order_by('mst.psc_estimated_date', 'ASC');
 		return $this->db->get()->result();

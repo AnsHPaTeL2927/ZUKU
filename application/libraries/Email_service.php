@@ -391,10 +391,10 @@ class Email_service
             }
 
             $count = count($records);
-            $subject = 'Production Reminder: ' . $count . ' production sheet(s) due within ' . $days . ' day(s)';
+            $subject = 'Production Reminder: ' . $count . ' production sheet(s) due in exactly ' . $days . ' day(s)';
 
             $body = 'Dear Admin,<br><br>';
-            $body .= 'This is a reminder that the following production sheet(s) will be delivered within <strong>' . $days . ' day(s)</strong> (based on PSC estimated date).<br><br>';
+            $body .= 'This is a reminder that the following production sheet(s) will be delivered in exactly <strong>' . $days . ' day(s)</strong> (based on PSC estimated date).<br><br>';
             $body .= '<strong>Please review:</strong><br><br>';
             $body .= '<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; font-size: 13px;">';
             $body .= '<tr style="background: #f5f5f5;"><th>Production No</th><th>PI No</th><th>Consignee</th><th>Supplier</th><th>Estimated Date</th><th>Days Left</th></tr>';

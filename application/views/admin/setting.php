@@ -568,7 +568,7 @@ $this->view('lib/header');
 													</label>
 													<div class="col-sm-6">
 														<input type="number" min="0" step="1" name="production_reminder_days" id="production_reminder_days" class="form-control" value="<?=isset($setting_data->production_reminder_days) && $setting_data->production_reminder_days !== '' && $setting_data->production_reminder_days !== null ? (int)$setting_data->production_reminder_days : 2?>" placeholder="e.g. 2" style="max-width: 120px;">
-														<small class="help-block">Fire notification when estimated delivery date (PSC) is X days away. Enter number of days.</small>
+														<small class="help-block">Fire notification only when exactly X days are left (e.g. 3 = notify only for records with 3 days left, not 2 or 4).</small>
 													</div>
 													<div class="col-sm-2">
 														<button type="button" class="btn btn-primary btn-sm" onclick="save_production_reminder_days();">Save</button>
