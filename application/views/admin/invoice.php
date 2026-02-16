@@ -537,6 +537,12 @@ else
 															$sel = 'selected="selected"';
 															$bank_selected = true;
 														}
+														elseif(!$bank_selected && $i==0 && $mode=="Edit")
+														{
+															// When editing: always select first bank if none matched (avoid "Select Bank" placeholder)
+															$sel = 'selected="selected"';
+															$bank_selected = true;
+														}
 													?>
 														<option <?=$sel?> value="<?php echo $all_bank[$i]->id; ?>" ><?php echo $all_bank[$i]->bank_name; ?></option>
 													<?php
@@ -1282,6 +1288,16 @@ if($mode=="Edit" && isset($invoicedata) && !empty($invoicedata->bank_id))
 	echo "	if(bankId != '' && bankId != undefined && bankId != 'Select Bank') {";
 	echo "		if(typeof load_bank_detail === 'function') { load_bank_detail(bankId); }";
 	echo "	}";
+	echo "});";
+	echo "</script>";
+}
+elseif($mode=="Edit" && isset($invoicedata) && empty($invoicedata->bank_id) && !empty($all_bank))
+{
+	// Edit with no bank saved: first bank is selected in dropdown, load its details
+	echo "<script>";
+	echo "$(document).ready(function() {";
+	echo "	var firstBankId = " . (int)$all_bank[0]->id . ";";
+	echo "	if(typeof load_bank_detail === 'function') { load_bank_detail(firstBankId); }";
 	echo "});";
 	echo "</script>";
 }
