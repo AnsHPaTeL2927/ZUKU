@@ -146,7 +146,9 @@ else
 }                                       
  $this->view('lib/header'); 
 ?>	
-
+<style>
+.po-field-disabled { background-color: #e9ecef !important; cursor: not-allowed; }
+</style>
 <div class="main-container">
 	<?php $this->view('lib/sidebar'); ?>
 	<div class="main-content">
@@ -271,7 +273,7 @@ else
 									</td>
 									<td>Proforma Invoice No</td>
 									<td>
-										<input type="text" placeholder="Invoice No" style="font-weight:bold;" id="invoice_no" required="" class="form-control" name="invoice_no" value="<?=$invoice_no?>" <?= ($mode=='Add' || (isset($invoicedata) && isset($invoicedata->confirm_status) && $invoicedata->confirm_status == 1)) ? 'readonly' : '' ?> autocomplete="off">
+										<input type="text" placeholder="Invoice No" style="font-weight:bold;" id="invoice_no" required="" class="form-control<?= ($mode=='Edit') ? ' po-field-disabled' : '' ?>" name="invoice_no" value="<?= isset($invoice_no) ? htmlspecialchars($invoice_no) : '' ?>" <?= ($mode=='Add' || $mode=='Edit') ? 'readonly' : '' ?> autocomplete="off">
 										<?php if ($mode=='Add'): ?>
 										<input type="hidden" id="invoice_series" name="invoice_series" value="<?= (int)$invoicetype->invoice_series + 1 ?>">
 										<?php endif; ?>

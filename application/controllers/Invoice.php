@@ -55,11 +55,18 @@ class Invoice extends CI_controller
 	{
 		$check_box_design = $this->invoice->check_terms_update($this->input->post('payment_terms'));
 		$mode = strtolower($this->input->post('mode'));
-		$invoice_no = $this->input->post('invoice_no');
-		$invoice_id = $this->input->post('performa_invoice_id');
+		$invoice_no = trim($this->input->post('invoice_no'));
+		$invoice_id = (int) $this->input->post('performa_invoice_id');
 		
 		// Check for duplicate invoice number - exclude current invoice ID in edit mode
-		$check_pi_no = $this->invoice->check_performa_no($invoice_no, ($mode == 'edit' ? $invoice_id : null));
+		$check_pi_no = $this->invoice->check_performa_no($invoice_no, ($mode == 'edit' && $invoice_id > 0 ? $invoice_id : null));
+		// In edit mode: if number unchanged from current record, never treat as duplicate
+		if ($mode == 'edit' && $invoice_id > 0 && !empty($check_pi_no)) {
+			$current = $this->invoice->getinvoicedata($invoice_id);
+			if ($current && trim($current->invoice_no) === $invoice_no) {
+				$check_pi_no = null;
+			}
+		}
 		
 		//$check_consigne = $this->invoice->check_consigne_id($this->input->post('consign_detail'));
 		
