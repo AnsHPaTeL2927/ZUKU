@@ -3,7 +3,8 @@ $this->view('lib/header');
 if($mode=="Add")
 { 	
 	$invoice_no="";
-	$invoice_series = str_pad($invoicetype->invoice_series,strlen($invoicetype->invoice_series), '0', STR_PAD_LEFT);
+	// PO series: 3-digit padding (001, 002, ...) for constant PO_25_26_
+	$invoice_series = str_pad($invoicetype->invoice_series, 3, '0', STR_PAD_LEFT);
 	if($invoicetype->invoice_format==0)
 	{
 		$invoice_no = $invoice_series;
@@ -173,7 +174,7 @@ else
 														</td>
 														<td width="15%" colspan="2" style="font-weight:bold">
 															<input type="text" placeholder="Purchase Order No" style="font-weight:bold;" id="purchase_order_no" required="" class="form-control" name="purchase_order_no" value="<?=$invoice_no?>" title="Enter Purchase Order No ">
-															<input type="hidden" id="invoice_series" required=""  name="invoice_series" value="<?=(str_pad($invoice_series + 1,strlen($invoicetype->invoice_series), '0', STR_PAD_LEFT))?>" >
+															<input type="hidden" id="invoice_series" required=""  name="invoice_series" value="<?=(str_pad((int)$invoicetype->invoice_series + 1, 3, '0', STR_PAD_LEFT))?>" >
 														</td>
 														<td width="5%">
 															DATE

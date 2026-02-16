@@ -271,8 +271,10 @@ else
 									</td>
 									<td>Proforma Invoice No</td>
 									<td>
-										<input type="text" placeholder="Invoice No" style="font-weight:bold;" id="invoice_no" required="" class="form-control" name="invoice_no" value="<?=$invoice_no?>" <?=($invoicedata->confirm_status == 1)?"readonly":""?>>
-										<input type="hidden" id="invoice_series" required=""  name="invoice_series" value="<?=(str_pad($invoice_series + 1,strlen($invoicetype->invoice_series), '0', STR_PAD_LEFT))?>" >
+										<input type="text" placeholder="Invoice No" style="font-weight:bold;" id="invoice_no" required="" class="form-control" name="invoice_no" value="<?=$invoice_no?>" <?= ($mode=='Add' || (isset($invoicedata) && isset($invoicedata->confirm_status) && $invoicedata->confirm_status == 1)) ? 'readonly' : '' ?> autocomplete="off">
+										<?php if ($mode=='Add'): ?>
+										<input type="hidden" id="invoice_series" name="invoice_series" value="<?= (int)$invoicetype->invoice_series + 1 ?>">
+										<?php endif; ?>
 									</td>
 									<td>DATE</td>
 									<td>

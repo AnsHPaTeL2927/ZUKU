@@ -133,7 +133,10 @@ $this->view('lib/header');
 									<div class="col-md-6">
 										<div class="form-group">
 											<label>PO Number (SR.NO)</label>
-											<input type="text" name="po_number" id="po-number" class="form-control<?= (isset($edit_mode) && $edit_mode) ? ' po-field-disabled' : '' ?>" placeholder="Enter PO number" required maxlength="100" value="<?= (isset($edit_mode) && $edit_mode && isset($po_data) && $po_data) ? htmlspecialchars($po_data->purchase_order_no) : '' ?>"<?= (isset($edit_mode) && $edit_mode) ? ' readonly' : '' ?>>
+											<input type="text" name="po_number" id="po-number" class="form-control<?= (isset($edit_mode) && $edit_mode) || !empty($next_po_number) ? ' po-field-disabled' : '' ?>" placeholder="Enter PO number" required maxlength="100" value="<?= (isset($edit_mode) && $edit_mode && isset($po_data) && $po_data) ? htmlspecialchars($po_data->purchase_order_no) : (isset($next_po_number) ? htmlspecialchars($next_po_number) : '') ?>"<?= (isset($edit_mode) && $edit_mode) || !empty($next_po_number) ? ' readonly' : '' ?> autocomplete="off">
+											<?php if (!empty($next_po_number) && empty($edit_mode)): ?>
+											<input type="hidden" name="invoice_series" id="invoice_series" value="<?= (int)(isset($next_po_series) ? $next_po_series : 1) ?>">
+											<?php endif; ?>
 										</div>
 									</div>
 									<div class="col-md-6">

@@ -71,10 +71,13 @@ class Purchaseorder_listing extends CI_controller
 		}
 		
 		$this->load->model('Pagging_model'); //call module 
-		$aColumns = array('purchase_order_id', 'purchase_order_no', 'seller_ref_no', 'supplier.supplier_name', 'supplier.company_name', 'purchase_order_date', 'mst.grand_total', 'mst.status', 'mst.cdate', 'mst.step', 'mst.production_mst_id', 'mst.performa_invoice_id');
+		$aColumns = array('purchase_order_id', 'purchase_order_no', 'seller_ref_no', 'pi.invoice_no as performa_invoice_no', 'supplier.supplier_name', 'supplier.company_name', 'purchase_order_date', 'mst.grand_total', 'mst.status', 'mst.cdate', 'mst.step', 'mst.production_mst_id', 'mst.performa_invoice_id');
 		$isWhere = array("mst.status = 0" . $where);
 		$table = "tbl_purchase_order as mst";
-		$isJOIN = array('left join  tbl_supplier supplier on supplier.supplier_id=mst.seller_id');
+		$isJOIN = array(
+			'left join tbl_supplier supplier on supplier.supplier_id=mst.seller_id',
+			'left join tbl_performa_invoice pi on pi.performa_invoice_id=mst.performa_invoice_id'
+		);
 		$hOrder = "mst.purchase_order_id desc";
 		$sqlReturn = $this->Pagging_model->get_datatables($aColumns, $table, $hOrder, $isJOIN, $isWhere, $this->input->get());
 		$appData = array();
@@ -122,7 +125,9 @@ class Purchaseorder_listing extends CI_controller
 			}
 
 			$row_data[] = $step_status;
-			$row_data[] = $row->seller_ref_no;
+			// Proforma Invoice column: show PI number when PO was moved to PI, else seller ref
+			$proforma_invoice_display = (!empty($row->performa_invoice_no)) ? $row->performa_invoice_no : $row->seller_ref_no;
+			$row_data[] = $proforma_invoice_display;
 
 			if ($row->step != 1) {
 				$row_data[] = '<div class="dropdown">
@@ -186,6 +191,15 @@ class Purchaseorder_listing extends CI_controller
 			$box_design = $this->pinv->get_box_design();
 			$allsizeproduct = $this->pinv->allsizeproduct();
 			$menu_data = $this->menu->usermain_menu($this->session->usertype_id);
+			// Next PO number from tbl_invoicetype (id 3 = Purchase Order), auto-increment
+			$invoicetype = $this->po_master->selectinvoicetype(3);
+			$next_po_number = '';
+			$next_po_series = 1;
+			if ($invoicetype) {
+				$series = (int) $invoicetype->invoice_series;
+				$next_po_number = (isset($invoicetype->formate_value) ? $invoicetype->formate_value : 'PO_25_26_') . str_pad($series, 3, '0', STR_PAD_LEFT);
+				$next_po_series = $series + 1;
+			}
 			$data = array(
 				'menu_data' => $menu_data,
 				'company_detail' => $this->admin_company_detail->s_select(),
@@ -196,6 +210,8 @@ class Purchaseorder_listing extends CI_controller
 				'edit_mode' => false,
 				'po_data' => null,
 				'po_products' => array(),
+				'next_po_number' => $next_po_number,
+				'next_po_series' => $next_po_series,
 			);
 			$this->load->view('admin/add_purchaseorder_listing', $data);
 		} else {
@@ -505,6 +521,11 @@ class Purchaseorder_listing extends CI_controller
 				echo json_encode(array('res' => '0', 'msg' => 'Failed to create PO.'));
 				return;
 			}
+			// Increment PO number series in tbl_invoicetype (invoicetype_id = 3)
+			$next_series = (int) $this->input->post('invoice_series');
+			if ($next_series > 0) {
+				$this->po_master->update_invoicenumber(3, $next_series);
+			}
 		}
 		$grand_total = 0;
 		$client_names = $this->input->post('client_name');
@@ -762,16 +783,16 @@ class Purchaseorder_listing extends CI_controller
 		// Start transaction
 		$this->db->trans_start();
 		
-		// Generate invoice number (using PO number as base or generate new)
+		// Generate Proforma Invoice number from first invoice type (Proforma Invoice - id 1), not PO format
 		$this->load->model('admin_invoice', 'invoice');
-		$invoice_no = 'PI-' . $po_data->purchase_order_no . '-' . date('Ymd');
-		$check_invoice_no = $this->invoice->check_performa_no($invoice_no);
-		$counter = 1;
-		while ($check_invoice_no) {
-			$invoice_no = 'PI-' . $po_data->purchase_order_no . '-' . date('Ymd') . '-' . $counter;
-			$check_invoice_no = $this->invoice->check_performa_no($invoice_no);
-			$counter++;
+		$pi_number_data = $this->_get_next_proforma_invoice_no();
+		if (empty($pi_number_data) || empty($pi_number_data['invoice_no'])) {
+			$this->db->trans_rollback();
+			redirect(base_url('purchaseorder_listing'));
+			return;
 		}
+		$invoice_no = $pi_number_data['invoice_no'];
+		$next_pi_series = isset($pi_number_data['next_series']) ? (int) $pi_number_data['next_series'] : 0;
 		
 		// Create proforma invoice record
 		$pi_data = array(
@@ -798,6 +819,11 @@ class Purchaseorder_listing extends CI_controller
 			$this->db->trans_rollback();
 			redirect(base_url('purchaseorder_listing'));
 			return;
+		}
+		
+		// Increment Proforma Invoice series in tbl_invoicetype (invoicetype_id = 1)
+		if ($next_pi_series > 0) {
+			$this->invoice->update_invoicenumber(1, $next_pi_series);
 		}
 		
 		// Copy transaction records
@@ -921,5 +947,94 @@ class Purchaseorder_listing extends CI_controller
 		
 		// Redirect to Proforma Invoice listing page
 		redirect(base_url('invoice_listing'));
+	}
+	
+	/**
+	 * Build next Proforma Invoice number from first invoice type (tbl_invoicetype id 1).
+	 * Same format as Settings > Invoice Type > Proforma Invoice (e.g. PI-383/2025-26).
+	 * @return array|null ['invoice_no' => string, 'next_series' => int] or null
+	 */
+	private function _get_next_proforma_invoice_no()
+	{
+		if (!isset($this->invoice)) {
+			$this->load->model('admin_invoice', 'invoice');
+		}
+		$row = $this->invoice->selectinvoicetype(1);
+		if (!$row) {
+			return null;
+		}
+		$series = isset($row->invoice_series) ? $row->invoice_series : 1;
+		$pad_len = strlen((string) $series);
+		if ($pad_len < 1) {
+			$pad_len = 1;
+		}
+		$invoice_series = str_pad($series, $pad_len, '0', STR_PAD_LEFT);
+		$invoice_no = '';
+		
+		if (isset($row->invoice_format)) {
+			if ($row->invoice_format == 0) {
+				$invoice_no = $invoice_series;
+			} elseif ($row->invoice_format == 1) {
+				$invoice_no = isset($row->formate_value) ? $row->formate_value : 'PI-';
+				$datevalue = isset($row->with_date) ? explode(',', $row->with_date) : array();
+				if (in_array(3, $datevalue)) {
+					$invoice_no .= date('y');
+				}
+				if (in_array(2, $datevalue)) {
+					$invoice_no .= date('m');
+				}
+				if (in_array(1, $datevalue)) {
+					$invoice_no .= date('d');
+				}
+				$invoice_no .= $invoice_series;
+			} elseif ($row->invoice_format == 2) {
+				$invoice_no = $invoice_series;
+				$datevalue = isset($row->with_date) ? explode(',', $row->with_date) : array();
+				if (in_array(3, $datevalue)) {
+					$invoice_no .= date('y');
+				}
+				if (in_array(2, $datevalue)) {
+					$invoice_no .= date('m');
+				}
+				if (in_array(1, $datevalue)) {
+					$invoice_no .= date('d');
+				}
+				$invoice_no .= (isset($row->formate_value) ? $row->formate_value : '');
+			}
+		}
+		if ($invoice_no === '') {
+			$invoice_no = (isset($row->formate_value) ? $row->formate_value : 'PI-') . $invoice_series;
+		}
+		
+		// Date part (with_date 1=d, 2=m, 3=y, 4=financial year; date_palce 1=prefix, 2=postfix)
+		$explode_array = isset($row->with_date) ? explode(',', $row->with_date) : array();
+		$value = array();
+		if (in_array(1, $explode_array)) {
+			$value[] = date('d');
+		}
+		if (in_array(2, $explode_array)) {
+			$value[] = date('m');
+		}
+		if (in_array(3, $explode_array)) {
+			$value[] = date('y');
+		}
+		if (in_array(4, $explode_array)) {
+			$year = date('n') >= 4 ? date('y') . '-' . (date('y') + 1) : (date('y') - 1) . '-' . date('y');
+			$value[] = $year;
+		}
+		$separate_by = isset($row->separate_by) ? $row->separate_by : '/';
+		$implode_array = implode($separate_by, $value);
+		if (isset($row->date_palce)) {
+			if ($row->date_palce == 1) {
+				$invoice_no = $implode_array . $separate_by . $invoice_no;
+			} elseif ($row->date_palce == 2) {
+				$invoice_no = $invoice_no . $separate_by . $implode_array;
+			}
+		}
+		
+		return array(
+			'invoice_no' => $invoice_no,
+			'next_series' => (int) $series + 1
+		);
 	}
 }
