@@ -421,4 +421,63 @@ class Email_service
             return false;
         }
     }
+
+    /**
+     * Send container shipped/dispatched email to client when admin triggers On the Way action in loading plan.
+     * Email includes: dispatch date (way_date) and estimated arrival date at client location.
+     * @param int    $performa_invoice_id   Proforma Invoice ID
+     * @param string $way_date              Date container dispatched (Y-m-d)
+     * @param string $estimated_arrival_date Estimated date container reaches client (Y-m-d)
+     * @return bool
+     */
+    public function send_container_shipped_email($performa_invoice_id, $way_date, $estimated_arrival_date)
+    {
+        try {
+            $this->CI->load->model('Admin_pdf');
+            $pi_data = $this->CI->Admin_pdf->select_invoice_data($performa_invoice_id);
+            if (!$pi_data) {
+                log_message('warning', 'Email_service send_container_shipped_email: PI data not found for ID ' . $performa_invoice_id);
+                return false;
+            }
+
+            $this->CI->load->model('Admin_invoice');
+            $customer_data = $this->CI->Admin_invoice->customerdetail($pi_data->consigne_id);
+            $client_email = (!empty($customer_data) && !empty($customer_data->c_email)) ? $customer_data->c_email : '';
+            if (empty($client_email) && !empty($customer_data->c_email_address)) {
+                $client_email = $customer_data->c_email_address;
+            }
+            if (empty($client_email) && $this->CI->config->item('email_test_override') && $this->CI->config->item('email_test_address')) {
+                $client_email = $this->CI->config->item('email_test_address');
+            }
+            if (empty($client_email)) {
+                log_message('warning', 'Email_service send_container_shipped_email: no recipient for PI ID ' . $performa_invoice_id);
+                return false;
+            }
+
+            $invoice_no = !empty($pi_data->invoice_no) ? $pi_data->invoice_no : 'PI-' . $performa_invoice_id;
+            $customer_name = (!empty($customer_data) && !empty($customer_data->c_name)) ? $customer_data->c_name :
+                            (!empty($customer_data->c_companyname) ? $customer_data->c_companyname : 'Client');
+
+            $subject = 'Container Shipped - ' . $invoice_no;
+
+            $body = 'Dear ' . $customer_name . ',<br><br>';
+            $body .= 'This is to inform you that your container has been dispatched.<br><br>';
+            $body .= '<strong>Shipment Details:</strong><br>';
+            $body .= 'Invoice Number: ' . $invoice_no . '<br>';
+            if (!empty($way_date) && $way_date != '0000-00-00') {
+                $body .= 'Container Dispatched Date: ' . date('d-m-Y', strtotime($way_date)) . '<br>';
+            }
+            if (!empty($estimated_arrival_date) && $estimated_arrival_date != '0000-00-00') {
+                $body .= 'Estimated Arrival Date at Your Location: ' . date('d-m-Y', strtotime($estimated_arrival_date)) . '<br>';
+            }
+            $body .= '<br>Thank you.<br><br>Best regards,<br>ZUKU App';
+
+            $this->CI->load->library('Pdf_service');
+            $sent = $this->CI->pdf_service->sendEmail($client_email, $subject, $body, null);
+            return $sent;
+        } catch (Throwable $e) {
+            log_message('error', 'Email_service send_container_shipped_email: ' . $e->getMessage());
+            return false;
+        }
+    }
 }

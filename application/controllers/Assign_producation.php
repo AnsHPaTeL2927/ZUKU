@@ -507,6 +507,14 @@ class Assign_producation extends CI_controller
 		
 		if($update_result)
 		{
+			// Send container shipped email to client (dispatch date + estimated arrival date)
+			if (!empty($way_date_formatted) || !empty($estimated_arrival_date_formatted)) {
+				$this->email_service->send_container_shipped_email(
+					$performa_invoice_id,
+					$way_date_formatted ?: null,
+					$estimated_arrival_date_formatted ?: null
+				);
+			}
 			$row['res'] = 1;
 			$row['msg'] = "On the Way information saved successfully";
 		}
