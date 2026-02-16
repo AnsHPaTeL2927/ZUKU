@@ -283,7 +283,7 @@ $this->view('lib/header');
 														'design_id' => isset($row->design_id) ? (int)$row->design_id : 0,
 														'design_name' => $design,
 														'sku' => $sku,
-														'warehouses' => array_map(function($wh) use ($row) { $c = 'wh_' . (int)$wh->id; return array('id' => (int)$wh->id, 'name' => (isset($wh->name) && trim($wh->name) !== '' ? $wh->name : 'WareHouse #' . (isset($wh->warehouse_number) ? $wh->warehouse_number : $wh->id)), 'value' => isset($row->$c) ? (float)$row->$c : 0); }, $display_warehouses),
+														'warehouses' => array_values(array_map(function($wh) use ($row) { $c = 'wh_' . (int)$wh->id; return array('id' => (int)$wh->id, 'name' => (isset($wh->name) && trim($wh->name) !== '' ? $wh->name : 'WareHouse #' . (isset($wh->warehouse_number) ? $wh->warehouse_number : $wh->id)), 'value' => isset($row->$c) ? (float)$row->$c : 0); }, $display_warehouses)),
 														'total_stock_sqm' => $total_stock_val,
 														'total_stock_boxes' => isset($row->total_boxes) ? (float)$row->total_boxes : 0,
 														'sqm_per_box' => isset($row->sqm_per_box) ? (float)$row->sqm_per_box : 0
@@ -505,8 +505,13 @@ $this->view('lib/footer');
 			try {
 				var row = typeof dataStr === 'string' ? JSON.parse(dataStr) : dataStr;
 			} catch (e) { return; }
-			var warehousesWithStock = (row.warehouses || []).filter(function(wh) { return (wh.value || 0) > 0; });
-			var whList = warehousesWithStock.length ? warehousesWithStock : (row.warehouses || []);
+			// Ensure warehouses is always an array (JSON may encode PHP associative array as object)
+			var warehousesArr = row.warehouses;
+			if (!Array.isArray(warehousesArr)) {
+				warehousesArr = warehousesArr && typeof warehousesArr === 'object' ? Object.keys(warehousesArr).map(function(k) { return warehousesArr[k]; }) : [];
+			}
+			var warehousesWithStock = warehousesArr.filter(function(wh) { return (wh && (wh.value || 0) > 0); });
+			var whList = warehousesWithStock.length ? warehousesWithStock : warehousesArr;
 			var currentWh = whList[0] || {};
 			var currentName = currentWh.name ? currentWh.name + (currentWh.value ? ' (' + currentWh.value + ' m²)' : '') : '-';
 			$('#editStockModal').data('performa-invoice-id', row.performa_invoice_id || 0);

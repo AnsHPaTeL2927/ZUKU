@@ -1081,6 +1081,7 @@ function open_add_to_inventory_modal(performa_invoice_id) {
 			
 			// Create a form for each warehouse
 			$.each(warehouses, function(index, warehouse) {
+				var isFirst = (index === 0);
 				var isLast = (index === warehouses.length - 1);
 				var displayText = warehouse.name;
 				if (warehouse.warehouse_number) {
@@ -1095,7 +1096,7 @@ function open_add_to_inventory_modal(performa_invoice_id) {
 				formHtml += '<div class="panel-heading"><strong>Warehouse: ' + displayText + '</strong></div>';
 				formHtml += '<div class="panel-body">';
 				formHtml += '<div class="form-group">';
-				formHtml += '<label class="control-label"><strong>Select Designs <span style="color: red;">*</span></strong></label>';
+				formHtml += '<label class="control-label designs-label"><strong>Select Designs <span class="designs-required-asterisk" style="color: red;">*</span></strong></label>';
 				
 				// Custom dropdown with table
 				formHtml += '<div class="design-dropdown-wrapper" data-warehouse-id="' + warehouse.id + '">';
@@ -1130,15 +1131,15 @@ function open_add_to_inventory_modal(performa_invoice_id) {
 				formHtml += '</div>';
 				formHtml += '</div>';
 				formHtml += '<div class="panel-footer">';
-				
+				formHtml += '<button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>';
+				if (!isFirst) {
+					formHtml += '<button type="button" class="btn btn-default btn-prev-warehouse">Previous</button>';
+				}
 				if (isLast) {
-					formHtml += '<button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>';
 					formHtml += '<button type="submit" class="btn btn-primary pull-right">Submit</button>';
 				} else {
-					formHtml += '<button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>';
 					formHtml += '<button type="button" class="btn btn-primary pull-right btn-next-warehouse">Next</button>';
 				}
-				
 				formHtml += '</div>';
 				formHtml += '</div>';
 				formHtml += '</form>';
@@ -1249,13 +1250,16 @@ function populateDesignTables() {
 				return false;
 			}
 			
-			var remainingBoxes = getRemainingBoxes(design.id);
+			// Exclude current warehouse so designs with entered boxes don't disappear on blur
+			var remainingBoxes = getRemainingBoxes(design.id, warehouseId);
 			var isSelectedInCurrent = currentSelected.indexOf(design.id.toString()) !== -1;
+			var hasEnteredBoxesHere = window.designBoxesMap && window.designBoxesMap[warehouseId] && (parseInt(window.designBoxesMap[warehouseId][design.id]) || 0) > 0;
 			
 			// Show design if:
-			// 1. It has remaining boxes > 0, OR
-			// 2. It's already selected in current warehouse (even if remaining is 0, to allow editing)
-			return remainingBoxes > 0 || isSelectedInCurrent;
+			// 1. It has remaining boxes > 0 (excluding this warehouse's allocation), OR
+			// 2. It's already selected in current warehouse (even if remaining is 0, to allow editing), OR
+			// 3. User has entered boxes here without selecting (keep row visible so they can select or edit)
+			return remainingBoxes > 0 || isSelectedInCurrent || hasEnteredBoxesHere;
 		});
 		
 		if (availableDesigns.length > 0) {
@@ -1332,7 +1336,9 @@ function populateDesignTables() {
 				rowHtml += '<td>' + designName + '</td>';
 				rowHtml += '<td style="text-align: right; padding: 4px !important; position: relative;">';
 				rowHtml += '<div style="display: inline-block; position: relative;">';
-				rowHtml += '<input type="number" class="form-control design-boxes-input" value="' + Math.round(customBoxes) + '" min="0" max="' + maxBoxesForWarehouse + '" step="1" placeholder="Max: ' + maxBoxesForWarehouse + '" style="width: 100px; text-align: right; display: inline-block; margin: 0; padding: 4px 8px; font-size: 13px;" data-design-id="' + design.id + '" data-warehouse-id="' + warehouseId + '" data-total-boxes="' + Math.round(totalBoxes) + '" data-remaining-boxes="' + remainingBoxes + '" data-max-boxes="' + maxBoxesForWarehouse + '" title="Maximum allowed: ' + maxBoxesForWarehouse + ' boxes (Remaining: ' + remainingBoxes + ')" ' + (isDisabled ? 'disabled' : '') + ' />';
+				// Use a high max (999999) so user can type large quantities (e.g. 1000); validation on blur enforces actual max
+				var inputMax = Math.max(maxBoxesForWarehouse, 999999);
+				rowHtml += '<input type="number" class="form-control design-boxes-input" value="' + Math.round(customBoxes) + '" min="0" max="' + inputMax + '" step="1" placeholder="Max: ' + maxBoxesForWarehouse + '" style="width: 100px; text-align: right; display: inline-block; margin: 0; padding: 4px 8px; font-size: 13px;" data-design-id="' + design.id + '" data-warehouse-id="' + warehouseId + '" data-total-boxes="' + Math.round(totalBoxes) + '" data-remaining-boxes="' + remainingBoxes + '" data-max-boxes="' + maxBoxesForWarehouse + '" title="Maximum allowed: ' + maxBoxesForWarehouse + ' boxes (Remaining: ' + remainingBoxes + ')" ' + (isDisabled ? 'disabled' : '') + ' />';
 				rowHtml += '<small class="boxes-error-message" style="display: none; color: #d9534f; font-size: 11px; position: absolute; right: 0; top: -18px; white-space: nowrap; background: white; padding: 2px 4px; border-radius: 3px; z-index: 1000;">Max: ' + maxBoxesForWarehouse + '</small>';
 				rowHtml += '<small class="boxes-max-hint" style="display: block; color: #999; font-size: 10px; margin-top: 2px; text-align: right;">Remaining: ' + remainingBoxes + ' / Total: ' + totalBoxes + '</small>';
 				rowHtml += '</div>';
@@ -1352,9 +1358,15 @@ function populateDesignTables() {
 			
 			// Update hidden input value
 			$hiddenInput.val(currentSelected.join(','));
+			// Label: required (has designs)
+			var $label = $wrapper.closest('.warehouse-form').find('.designs-label');
+			$label.find('.designs-required-asterisk').text('*').css('color', 'red').show();
 		} else {
 			$tbody.append('<tr><td colspan="5" style="text-align: center; padding: 20px; color: #999;">No designs available</td></tr>');
 			$wrapper.find('.select-all-designs').prop('checked', false);
+			// Label: optional (no designs in this warehouse)
+			var $label = $wrapper.closest('.warehouse-form').find('.designs-label');
+			$label.find('.designs-required-asterisk').text('(Optional)').css('color', '#999');
 		}
 		
 		// Update toggle text
@@ -1693,93 +1705,101 @@ $(document).on('click', '.select-all-designs', function(e) {
 	}, 100);
 });
 
-// Handle boxes input change
-$(document).on('change blur input', '.design-boxes-input', function(e) {
+// Handle boxes input: on "input" store value and show error if manually entered number > total boxes
+$(document).on('input', '.design-boxes-input', function(e) {
 	e.stopPropagation();
 	var $input = $(this);
 	var $row = $input.closest('.design-table-row');
 	var designId = $input.data('design-id').toString();
 	var warehouseId = $input.data('warehouse-id');
-				// Get max boxes for this warehouse (remaining + current allocation)
-				var maxBoxes = parseInt($input.data('max-boxes')) || parseInt($row.data('max-boxes')) || 0;
-				var remainingBoxes = parseInt($input.data('remaining-boxes')) || parseInt($row.data('remaining-boxes')) || 0;
-				var currentAllocated = 0;
-				if (window.designBoxesMap && window.designBoxesMap[warehouseId] && window.designBoxesMap[warehouseId][designId] !== undefined) {
-					currentAllocated = parseInt(window.designBoxesMap[warehouseId][designId]) || 0;
-				}
-				
-				var boxesValue = Math.round(parseFloat($input.val()) || 0);
-				var $errorMsg = $row.find('.boxes-error-message');
-				
-				// Remove previous error styling
-				$input.removeClass('has-error');
-				$errorMsg.hide();
-				
-				// Ensure non-negative and integer
-				if (boxesValue < 0 || isNaN(boxesValue)) {
-					boxesValue = 0;
-					$input.val(0);
-				} else {
-					// Round to integer and update input value
-					boxesValue = Math.round(boxesValue);
-					$input.val(boxesValue);
-				}
-				
-				// Initialize boxes map if needed
-				if (!window.designBoxesMap[warehouseId]) {
-					window.designBoxesMap[warehouseId] = {};
-				}
-				
-				// Store the new value temporarily to recalculate remaining boxes correctly
-				var oldValue = window.designBoxesMap[warehouseId][designId] || 0;
-				if (boxesValue > 0) {
-					window.designBoxesMap[warehouseId][designId] = boxesValue;
-				} else {
-					// Remove from map if 0
-					if (window.designBoxesMap[warehouseId][designId] !== undefined) {
-						delete window.designBoxesMap[warehouseId][designId];
-					}
-				}
-				
-				// Recalculate max boxes AFTER storing new value (remaining + current allocation)
-				var newRemaining = getRemainingBoxes(designId, warehouseId);
-				var newCurrentAllocated = boxesValue;
-				var newMaxBoxes = newRemaining + newCurrentAllocated;
-				
-				// Validate: boxes cannot exceed max boxes
-				if (boxesValue > newMaxBoxes) {
-					// Restore old value if validation fails
-					if (oldValue > 0) {
-						window.designBoxesMap[warehouseId][designId] = oldValue;
-					} else {
-						delete window.designBoxesMap[warehouseId][designId];
-					}
-					
-					boxesValue = newMaxBoxes;
-					$input.val(newMaxBoxes);
-					$input.addClass('has-error');
-					$errorMsg.text('Maximum allowed: ' + newMaxBoxes + ' boxes').show();
-					
-					// Show error for 3 seconds then hide
-					setTimeout(function() {
-						$input.removeClass('has-error');
-						$errorMsg.fadeOut();
-					}, 3000);
-					
-					// Store corrected value
-					if (boxesValue > 0) {
-						window.designBoxesMap[warehouseId][designId] = boxesValue;
-					}
-				}
-				
-				// Update the row's data attribute for reference
-				$row.attr('data-custom-boxes', boxesValue);
-				
-				// Refresh all warehouse tables to update remaining boxes
-				setTimeout(function() {
-					populateDesignTables();
-					updateDesignPreview();
-				}, 100);
+	var maxBoxes = parseInt($input.data('max-boxes')) || parseInt($row.data('max-boxes')) || 0;
+	var $errorMsg = $row.find('.boxes-error-message');
+	var rawVal = parseFloat($input.val());
+	var boxesValue = (rawVal !== '' && !isNaN(rawVal) && rawVal >= 0) ? Math.round(rawVal) : 0;
+
+	// Show error immediately when manually entered number is higher than total boxes
+	if (boxesValue > maxBoxes && maxBoxes > 0) {
+		$input.addClass('has-error');
+		$errorMsg.text('Boxes are higher than the total boxes. Max allowed: ' + maxBoxes).show();
+	} else {
+		$input.removeClass('has-error');
+		$errorMsg.hide();
+	}
+
+	if (!window.designBoxesMap[warehouseId]) {
+		window.designBoxesMap[warehouseId] = {};
+	}
+	if (boxesValue > 0) {
+		window.designBoxesMap[warehouseId][designId] = boxesValue;
+	} else if (window.designBoxesMap[warehouseId][designId] !== undefined) {
+		delete window.designBoxesMap[warehouseId][designId];
+	}
+	$row.attr('data-custom-boxes', boxesValue);
+});
+
+// Handle boxes input on change/blur: validate and refresh tables (re-render only when done typing)
+$(document).on('change blur', '.design-boxes-input', function(e) {
+	e.stopPropagation();
+	var $input = $(this);
+	var $row = $input.closest('.design-table-row');
+	var designId = $input.data('design-id').toString();
+	var warehouseId = $input.data('warehouse-id');
+	var maxBoxes = parseInt($input.data('max-boxes')) || parseInt($row.data('max-boxes')) || 0;
+	var remainingBoxes = parseInt($input.data('remaining-boxes')) || parseInt($row.data('remaining-boxes')) || 0;
+	var boxesValue = Math.round(parseFloat($input.val()) || 0);
+	var $errorMsg = $row.find('.boxes-error-message');
+
+	$input.removeClass('has-error');
+	$errorMsg.hide();
+
+	if (boxesValue < 0 || isNaN(boxesValue)) {
+		boxesValue = 0;
+		$input.val(0);
+	} else {
+		boxesValue = Math.round(boxesValue);
+		$input.val(boxesValue);
+	}
+
+	if (!window.designBoxesMap[warehouseId]) {
+		window.designBoxesMap[warehouseId] = {};
+	}
+	var oldValue = window.designBoxesMap[warehouseId][designId] || 0;
+	if (boxesValue > 0) {
+		window.designBoxesMap[warehouseId][designId] = boxesValue;
+	} else {
+		if (window.designBoxesMap[warehouseId][designId] !== undefined) {
+			delete window.designBoxesMap[warehouseId][designId];
+		}
+	}
+
+	var newRemaining = getRemainingBoxes(designId, warehouseId);
+	var newMaxBoxes = newRemaining + boxesValue;
+
+	if (boxesValue > newMaxBoxes) {
+		if (oldValue > 0) {
+			window.designBoxesMap[warehouseId][designId] = oldValue;
+		} else {
+			delete window.designBoxesMap[warehouseId][designId];
+		}
+		boxesValue = newMaxBoxes;
+		$input.val(newMaxBoxes);
+		$input.addClass('has-error');
+		$errorMsg.text('Boxes are higher than the total boxes. Max allowed: ' + newMaxBoxes).show();
+		setTimeout(function() {
+			$input.removeClass('has-error');
+			$errorMsg.fadeOut();
+		}, 3000);
+		if (boxesValue > 0) {
+			window.designBoxesMap[warehouseId][designId] = boxesValue;
+		}
+	}
+
+	$row.attr('data-custom-boxes', boxesValue);
+
+	setTimeout(function() {
+		populateDesignTables();
+		updateDesignPreview();
+	}, 100);
 });
 
 // Prevent row click when clicking on input
@@ -1803,15 +1823,16 @@ $(document).on('click', '.btn-next-warehouse', function() {
 	var currentWarehouseId = currentForm.data('warehouse-id');
 	var selectedValue = currentForm.find('.design-multiselect').val() || '';
 	var currentSelected = selectedValue ? selectedValue.split(',') : [];
+	var hasDesignRows = currentForm.find('.design-dropdown-wrapper .design-table-row').length > 0;
 	
-	// Check if any designs are selected
-	if (currentSelected.length === 0) {
+	// Check if any designs are selected (skip if this warehouse has no designs available)
+	if (hasDesignRows && currentSelected.length === 0) {
 		alert("Please select at least one design before proceeding.");
 		currentForm.find('.design-dropdown-toggle').click();
 		return false;
 	}
 	
-	// Check if any boxes exceed max or are 0
+	// Check if any boxes exceed max or are 0 (only when we have selected designs)
 	var hasInvalidBoxes = false;
 	var invalidDesigns = [];
 	$.each(currentSelected, function(index, designId) {
@@ -1832,11 +1853,11 @@ $(document).on('click', '.btn-next-warehouse', function() {
 			} else if (enteredBoxes > maxBoxes) {
 				hasInvalidBoxes = true;
 				var designName = $row.find('td').eq(3).text() || 'Design';
-				invalidDesigns.push(designName + ' (Max: ' + maxBoxes + ')');
+				invalidDesigns.push(designName + ' (Boxes are higher than the total boxes. Max: ' + maxBoxes + ')');
 				
 				// Highlight the input
 				$input.addClass('has-error');
-				$row.find('.boxes-error-message').text('Maximum allowed: ' + maxBoxes).show();
+				$row.find('.boxes-error-message').text('Boxes are higher than the total boxes. Max allowed: ' + maxBoxes).show();
 			}
 		}
 	});
@@ -1863,6 +1884,19 @@ $(document).on('click', '.btn-next-warehouse', function() {
 	updateDesignPreview();
 });
 
+// Handle Previous button click - go back to previous warehouse form
+$(document).on('click', '.btn-prev-warehouse', function() {
+	var currentForm = $(this).closest('.warehouse-form');
+	var currentIndex = parseInt(currentForm.data('warehouse-index'));
+	var prevForm = $('.warehouse-form[data-warehouse-index="' + (currentIndex - 1) + '"]');
+	if (prevForm.length) {
+		currentForm.hide();
+		prevForm.show();
+		$("#current_warehouse_index").val(currentIndex - 1);
+		updateDesignPreview();
+	}
+});
+
 // Handle warehouse form submission
 $(document).on('submit', '.warehouse-form', function(event) {
 	event.preventDefault();
@@ -1873,9 +1907,10 @@ $(document).on('submit', '.warehouse-form', function(event) {
 	var selected_designs_value = form.find('.design-multiselect').val() || '';
 	var selected_designs = selected_designs_value ? selected_designs_value.split(',') : [];
 	var performa_invoice_id = $("#add_to_inventory_performa_invoice_id").val();
+	var formHasDesignRows = form.find('.design-dropdown-wrapper .design-table-row').length > 0;
 	
-	// Validate that at least one design is selected
-	if (!selected_designs || selected_designs.length === 0) {
+	// Validate that at least one design is selected (skip if this warehouse has no designs available)
+	if (formHasDesignRows && (!selected_designs || selected_designs.length === 0)) {
 		alert("Please select at least one design.");
 		// Open the dropdown to show the user
 		form.find('.design-dropdown-toggle').click();
@@ -1925,18 +1960,18 @@ $(document).on('submit', '.warehouse-form', function(event) {
 					hasInvalidBoxes = true;
 					// Get design name for error message
 					var designName = $row.find('td').eq(3).text() || 'Design';
-					invalidDesigns.push(designName + ' (Max: ' + maxBoxes + ')');
+					invalidDesigns.push(designName + ' (Boxes are higher than the total boxes. Max: ' + maxBoxes + ')');
 					
 					// Highlight the input
 					$input.addClass('has-error');
-					$row.find('.boxes-error-message').text('Maximum allowed: ' + maxBoxes).show();
+					$row.find('.boxes-error-message').text('Boxes are higher than the total boxes. Max allowed: ' + maxBoxes).show();
 				}
 			}
 		});
 	});
 	
 	if (hasInvalidBoxes) {
-		var errorMsg = "Some designs have box quantities exceeding the maximum allowed:\n\n" + invalidDesigns.join('\n');
+		var errorMsg = "Boxes are higher than the total boxes for some designs:\n\n" + invalidDesigns.join('\n');
 		alert(errorMsg);
 		// Open the dropdown to show the user
 		form.find('.design-dropdown-toggle').click();
