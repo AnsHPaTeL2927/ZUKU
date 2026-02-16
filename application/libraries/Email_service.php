@@ -365,4 +365,60 @@ class Email_service
             return false;
         }
     }
+
+    /**
+     * Send production reminder email to admin (scheduled/cron).
+     * Notifies when production sheets have PSC estimated date within X days.
+     * @param array $records Array of production records from get_production_reminder_records
+     * @param int   $days    Number of days configured for reminder
+     * @return bool
+     */
+    public function send_production_reminder_email($records, $days = 2)
+    {
+        try {
+            if (empty($records)) {
+                return false;
+            }
+            $this->CI->load->model('admin_company_detail');
+            $company_detail = $this->CI->admin_company_detail->s_select();
+            $admin_email = (!empty($company_detail) && !empty($company_detail[0]->s_email)) ? $company_detail[0]->s_email : '';
+            if (empty($admin_email) && $this->CI->config->item('email_test_override') && $this->CI->config->item('email_test_address')) {
+                $admin_email = $this->CI->config->item('email_test_address');
+            }
+            if (empty($admin_email)) {
+                log_message('warning', 'Email_service send_production_reminder_email: no admin email found');
+                return false;
+            }
+
+            $count = count($records);
+            $subject = 'Production Reminder: ' . $count . ' production sheet(s) due within ' . $days . ' day(s)';
+
+            $body = 'Dear Admin,<br><br>';
+            $body .= 'This is a reminder that the following production sheet(s) will be delivered within <strong>' . $days . ' day(s)</strong> (based on PSC estimated date).<br><br>';
+            $body .= '<strong>Please review:</strong><br><br>';
+            $body .= '<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; font-size: 13px;">';
+            $body .= '<tr style="background: #f5f5f5;"><th>Production No</th><th>PI No</th><th>Consignee</th><th>Supplier</th><th>Estimated Date</th><th>Days Left</th></tr>';
+
+            foreach ($records as $row) {
+                $body .= '<tr>';
+                $body .= '<td>' . htmlspecialchars(!empty($row->producation_no) ? $row->producation_no : '-') . '</td>';
+                $body .= '<td>' . htmlspecialchars(!empty($row->invoice_no) ? $row->invoice_no : '-') . '</td>';
+                $body .= '<td>' . htmlspecialchars(!empty($row->consignee_name) ? $row->consignee_name : '-') . '</td>';
+                $body .= '<td>' . htmlspecialchars(!empty($row->supplier_name) ? $row->supplier_name : '-') . '</td>';
+                $body .= '<td>' . (!empty($row->psc_estimated_date) ? date('d-m-Y', strtotime($row->psc_estimated_date)) : '-') . '</td>';
+                $body .= '<td>' . (isset($row->days_left) ? (int) $row->days_left : '-') . '</td>';
+                $body .= '</tr>';
+            }
+            $body .= '</table><br>';
+            $body .= 'Please log in to the Production Sheet to review and take action.<br><br>';
+            $body .= 'Thank you.<br><br>Best regards,<br>ZUKU App';
+
+            $this->CI->load->library('Pdf_service');
+            $sent = $this->CI->pdf_service->sendEmail($admin_email, $subject, $body, null);
+            return $sent;
+        } catch (Throwable $e) {
+            log_message('error', 'Email_service send_production_reminder_email: ' . $e->getMessage());
+            return false;
+        }
+    }
 }

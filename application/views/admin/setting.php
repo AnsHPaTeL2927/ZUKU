@@ -562,6 +562,18 @@ $this->view('lib/header');
 														</label>
 													</div>
 												</div>
+												<div class="form-group">
+													<label class="col-sm-2 control-label" for="form-field-1">
+														Production Reminder Days
+													</label>
+													<div class="col-sm-6">
+														<input type="number" min="0" step="1" name="production_reminder_days" id="production_reminder_days" class="form-control" value="<?=isset($setting_data->production_reminder_days) && $setting_data->production_reminder_days !== '' && $setting_data->production_reminder_days !== null ? (int)$setting_data->production_reminder_days : 2?>" placeholder="e.g. 2" style="max-width: 120px;">
+														<small class="help-block">Fire notification when estimated delivery date (PSC) is X days away. Enter number of days.</small>
+													</div>
+													<div class="col-sm-2">
+														<button type="button" class="btn btn-primary btn-sm" onclick="save_production_reminder_days();">Save</button>
+													</div>
+												</div>
 												
 												
 									 
@@ -778,6 +790,33 @@ function change_setting_pi(checked,control)
 			  }
               
           }); 
+}
+
+function save_production_reminder_days()
+{
+	var days = $("#production_reminder_days").val();
+	if (days === '' || parseInt(days) < 0) {
+		days = 2;
+	}
+	if (typeof block_page === 'function') block_page();
+	$.ajax({ 
+		type: "POST", 
+		url: root+"setting/update_production_reminder_days",
+		data: { "production_reminder_days": days }, 
+		success: function (response) { 
+			var obj = JSON.parse(response);
+			if (typeof unblock_page === 'function') {
+				unblock_page(obj.res == 1 ? "success" : "error", obj.res == 1 ? "Production Reminder Days saved successfully." : "Something went wrong."); 
+			} else {
+				alert(obj.res == 1 ? "Production Reminder Days saved successfully." : "Something went wrong.");
+				if (typeof $.unblockUI === 'function') $.unblockUI();
+			}
+		},
+		error: function() {
+			if (typeof unblock_page === 'function') unblock_page("error", "Something went wrong.");
+			else { alert("Something went wrong."); if (typeof $.unblockUI === 'function') $.unblockUI(); }
+		}
+	}); 
 }  
 function add_final_format()
 {

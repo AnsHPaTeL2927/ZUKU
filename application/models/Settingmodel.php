@@ -49,6 +49,15 @@ class Settingmodel extends CI_model
 		$this->db->where('log_id',1);
 		return $this->db->update('ciadmin_login',$data);
 	}
+
+	public function update_production_reminder_days($days)
+	{
+		$days = (int) $days;
+		if ($days < 0) $days = 0;
+		$data = array('production_reminder_days' => $days);
+		$this->db->where('log_id', 1);
+		return $this->db->update('ciadmin_login', $data);
+	}
 	
 	
 	public function setting_data($id)

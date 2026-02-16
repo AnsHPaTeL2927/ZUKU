@@ -25,15 +25,21 @@ class Producation_detail extends CI_controller
 			//$data['supplier_data']		= $this->producation->getsupplierdata();
 			//$data['payment_data']	 = $this->expense->getpaymentdata();
 			
+			$setting_data = $this->menu->setting_data(1);
+			$reminder_days = isset($setting_data->production_reminder_days) && $setting_data->production_reminder_days !== '' && $setting_data->production_reminder_days !== null ? (int) $setting_data->production_reminder_days : 2;
+			$reminder_count = $this->pinv->get_production_reminder_count($reminder_days);
+
 			$data = array(
 			 	'mode'				=> 'Add',
 				'invoicetype'		=> $selectinvoicetype,
 				'menu_data'			=> $menu_data,
-				'setting_data'		=> $this->menu->setting_data(1),
+				'setting_data'		=> $setting_data,
 				'company_detail'	=> $this->admin_company_detail->s_select(),
 				'allproduct'		=> $this->producation->allproductsize(),
 				'consign_data'		=> $this->producation->select_consigner(),
-				'supplier_data'		=> $this->producation->getsupplierdata()
+				'supplier_data'		=> $this->producation->getsupplierdata(),
+				'production_reminder_days' => $reminder_days,
+				'production_reminder_count' => $reminder_count
 			);
 			$this->load->view('admin/producation_detail',$data);
 		}

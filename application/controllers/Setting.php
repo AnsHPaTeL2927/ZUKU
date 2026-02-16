@@ -438,6 +438,17 @@ class Setting extends CI_controller
 		}
 		echo json_encode($row);
 	}
+
+	public function update_production_reminder_days()
+	{
+		$days = $this->input->post('production_reminder_days');
+		$ok = $this->setting->update_production_reminder_days($days);
+		$row = array('res' => $ok ? 1 : 0);
+		if ($ok) {
+			$_SESSION['updatedinsetting'] = 4;
+		}
+		echo json_encode($row);
+	}
 }
 
 

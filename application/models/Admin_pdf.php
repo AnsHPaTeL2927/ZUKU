@@ -3278,6 +3278,47 @@ public function productio_entry_record($id)
 	}
 
 	/**
+	 * Count production sheets due within X days (PSC estimated date).
+	 * Used for Production Reminder notification.
+	 */
+	public function get_production_reminder_count($days = 2)
+	{
+		$days = (int) $days;
+		if ($days < 0) return 0;
+		$this->db->select('COUNT(*) as cnt');
+		$this->db->from('tbl_production_mst');
+		$this->db->where('psc_estimated_date IS NOT NULL');
+		$this->db->where('psc_estimated_date >=', date('Y-m-d'));
+		$this->db->where('DATEDIFF(psc_estimated_date, CURDATE()) <=', $days);
+		$this->db->where('status', 0);
+		$row = $this->db->get()->row();
+		return $row ? (int) $row->cnt : 0;
+	}
+
+	/**
+	 * Get production sheets due within X days (PSC estimated date) for email reminder.
+	 * Returns records with production_no, invoice_no, psc_estimated_date, consignee, supplier.
+	 */
+	public function get_production_reminder_records($days = 2)
+	{
+		$days = (int) $days;
+		if ($days < 0) return array();
+		$this->db->select('mst.production_mst_id, mst.producation_no, mst.producation_date, mst.psc_estimated_date, mst.psc_count_days,
+			invoice.invoice_no, consign.c_companyname as consignee_name, sup.company_name as supplier_name,
+			DATEDIFF(mst.psc_estimated_date, CURDATE()) as days_left');
+		$this->db->from('tbl_production_mst mst');
+		$this->db->join('tbl_performa_invoice invoice', 'invoice.performa_invoice_id = mst.performa_invoice_id', 'INNER');
+		$this->db->join('customer_detail consign', 'consign.id = invoice.consigne_id', 'LEFT');
+		$this->db->join('tbl_supplier sup', 'sup.supplier_id = mst.supplier_id', 'LEFT');
+		$this->db->where('mst.psc_estimated_date IS NOT NULL');
+		$this->db->where('mst.psc_estimated_date >=', date('Y-m-d'));
+		$this->db->where('DATEDIFF(mst.psc_estimated_date, CURDATE()) <=', $days);
+		$this->db->where('mst.status', 0);
+		$this->db->order_by('mst.psc_estimated_date', 'ASC');
+		return $this->db->get()->result();
+	}
+
+	/**
 	 * Get production done report rows (for email PDF): PI order boxes + current production values
 	 */
 	public function get_production_done_rows($production_mst_id)

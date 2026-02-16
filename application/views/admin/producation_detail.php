@@ -34,6 +34,16 @@ function view_pdf(no)
 				 	</div>
 				 </div>
 			 </div>
+			 <?php if (!empty($production_reminder_count) && $production_reminder_count > 0): ?>
+			 <div class="row">
+			 	<div class="col-sm-12">
+			 		<div class="alert alert-warning alert-dismissible" role="alert" style="margin-bottom: 15px;">
+			 			<button type="button" class="close" data-dismiss="alert"><span aria-hidden="true">&times;</span></button>
+			 			<strong><i class="fa fa-bell"></i> Production Reminder:</strong> <?=$production_reminder_count?> production sheet(s) will be delivered within <strong><?=isset($production_reminder_days) ? (int)$production_reminder_days : 2?></strong> day(s) (based on PSC estimated date). Please review.
+			 		</div>
+			 	</div>
+			 </div>
+			 <?php endif; ?>
 			 <div class="row">
 			 	<div class="col-sm-12">
 			 		<div class="panel panel-default">
